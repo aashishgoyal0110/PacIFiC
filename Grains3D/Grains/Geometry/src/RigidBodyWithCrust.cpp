@@ -291,7 +291,8 @@ PointContact RigidBodyWithCrust::ClosestPoint( RigidBodyWithCrust &neighbor )
            convexB->getConvexType() == RECTANGLE2D )
       {
         --GrainsExec::m_nb_GJK_narrow_collision_detections;
-	return ( ClosestPointRECTANGLE( *this, neighbor, false ) );
+	return ( ClosestPointRECTANGLE( *this, neighbor, false, false, 
+		false ) );
       }
       ++GrainsExec::m_nb_GJK_calls;
 
@@ -448,7 +449,8 @@ PointContact RigidBodyWithCrust::ClosestPoint( RigidBodyWithCrust &neighbor,
            convexB->getConvexType() == RECTANGLE2D )
       {
         --GrainsExec::m_nb_GJK_narrow_collision_detections;
-	return ( ClosestPointRECTANGLE( *this, neighbor, false ) );
+	return ( ClosestPointRECTANGLE( *this, neighbor, false, false, 
+		false ) );
       }
       ++GrainsExec::m_nb_GJK_calls;
       
@@ -928,7 +930,7 @@ bool RigidBodyWithCrust::isContact( RigidBodyWithCrust& neighbor )
 	convexB->getConvexType() == RECTANGLE2D )
       {
         --GrainsExec::m_nb_GJK_narrow_collision_detections;
-        pc = ClosestPointRECTANGLE( *this, neighbor, false );
+        pc = ClosestPointRECTANGLE( *this, neighbor, false, false, false );
         if ( pc.getOverlapDistance() < 0. ) contact = true;	
       }
       else
@@ -1105,8 +1107,8 @@ bool isContactBVolume( RigidBodyWithCrust const& rbA,
 // ----------------------------------------------------------------------------
 // Returns the features of the contact when the 1 rigid body is a rectangle
 PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA,
-  RigidBodyWithCrust const& rbB, bool const& checkoverlap,
-  bool checkCGInRec )
+  RigidBodyWithCrust const& rbB, bool checkoverlap,
+  bool checkProjInRec, bool checkCGInRec )
 {
   // Note: the rectangle has conceptually no width and therefore no crust 
   // thickness, so instead of using the sum of the crust thicknesses of the 
@@ -1124,7 +1126,7 @@ PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA,
     Transform const* a2w = rbA.getTransform();
     Transform const* b2w = rbB.getTransform();
     double overlap = 0.;
-    bool proj = false;
+    bool proj = true;
 
     if ( convexA->getConvexType() == RECTANGLE2D )
     {
@@ -1139,15 +1141,18 @@ PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA,
       {
         Point3 pointB = ( ( *rPt - pointA ) * rNorm ) * rNorm + pointA;
 
-        // The projection point lies in the rectangle?
-        Transform invTransform;
-        invTransform.setToInverseTransform( *a2w );      
-        if ( convexA->isIn( ( invTransform )( pointB ) ) ) proj = true;
-        // The projection of the center of mass lies in the rectangle?	
-	else if ( checkCGInRec )
+        if ( checkProjInRec )
 	{
-	  Point3 pointC = ( ( *rPt - cPt ) * rNorm ) * rNorm + cPt;     
-          if ( convexA->isIn( ( invTransform )( pointC ) ) ) proj = true;
+	  // The projection point lies in the rectangle?
+          Transform invTransform;
+          invTransform.setToInverseTransform( *a2w );      
+          if ( !convexA->isIn( ( invTransform )( pointB ) ) ) proj = false;
+          // The projection of the center of mass lies in the rectangle?	
+	  else if ( checkCGInRec )
+	  {
+	    Point3 pointC = ( ( *rPt - cPt ) * rNorm ) * rNorm + cPt;     
+            if ( !convexA->isIn( ( invTransform )( pointC ) ) ) proj = false;
+	  }
 	}
 	
 	if ( proj )
@@ -1156,7 +1161,7 @@ PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA,
           Vector3 overlap_vector = pointA - pointB;
           overlap = - Norm( overlap_vector );
 
-	        if ( checkoverlap )
+	  if ( checkoverlap )
           {
             double rdwB = rbB.getCrustThickness();	  
             if ( - overlap >= 2. * rdwB )
@@ -1187,14 +1192,17 @@ PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA,
       {
         Point3 pointB = ( ( *rPt - pointA ) * rNorm ) * rNorm + pointA;
 
-        // The projection point lies in the rectangle?
-        Transform invTransform;
-        invTransform.setToInverseTransform( *b2w );
-        if ( convexB->isIn( ( invTransform )( pointB ) ) ) proj = true;
-	else if ( checkCGInRec )
+        if ( checkProjInRec )
 	{
-	  Point3 pointC = ( ( *rPt - cPt ) * rNorm ) * rNorm + cPt;     
-          if ( convexB->isIn( ( invTransform )( pointC ) ) ) proj = true;
+          // The projection point lies in the rectangle?
+          Transform invTransform;
+          invTransform.setToInverseTransform( *b2w );
+          if ( !convexB->isIn( ( invTransform )( pointB ) ) ) proj = false;
+	  else if ( checkCGInRec )
+	  {
+	    Point3 pointC = ( ( *rPt - cPt ) * rNorm ) * rNorm + cPt;     
+            if ( !convexB->isIn( ( invTransform )( pointC ) ) ) proj = false;
+	  }
 	}
 		
 	if ( proj )

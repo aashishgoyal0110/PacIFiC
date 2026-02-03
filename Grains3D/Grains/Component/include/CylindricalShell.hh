@@ -12,7 +12,7 @@ using namespace std;
 
 /** @brief The class CylindricalShell
 
-    Cylindrical shell made of boxes.
+    Cylindrical shell made of boxes or rectangles.
 
     @author A.WACHS - 2024 - Creation */
 // ============================================================================

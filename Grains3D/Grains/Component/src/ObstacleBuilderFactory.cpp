@@ -6,6 +6,7 @@
 #include "CylindricalShell.hh"
 #include "RoughWall.hh"
 #include "TruncatedConicalShell.hh"
+#include "BoxShell.hh"
 #include <string>
 using namespace std;
 
@@ -34,7 +35,9 @@ Obstacle* ObstacleBuilderFactory::create( DOMNode* root )
   else if ( type == "RoughWall" )
     obstacle = new RoughWall( root );
   else if ( type == "TruncatedConicalShell" )
-    obstacle = new TruncatedConicalShell( root );          
+    obstacle = new TruncatedConicalShell( root );
+  else if ( type == "BoxShell" )
+    obstacle = new BoxShell( root );              
 
   return ( obstacle );
 }
@@ -59,7 +62,9 @@ void ObstacleBuilderFactory::reload( string const& tag, Obstacle& mother,
     else if ( type == "RoughWall" )
       obstacle = new RoughWall( name );
     else if ( type == "TruncatedConicalShell" )
-      obstacle = new TruncatedConicalShell( name );          
+      obstacle = new TruncatedConicalShell( name );
+    else if ( type == "BoxShell" )
+      obstacle = new BoxShell( name );                
     obstacle->reload( mother, file );
   } 
   else if ( tag == "<Simple>" ) 

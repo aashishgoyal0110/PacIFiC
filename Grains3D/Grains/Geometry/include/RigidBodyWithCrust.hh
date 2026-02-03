@@ -249,10 +249,13 @@ a rectangle
 @param rbB 2nd rigid body 
 @param checkoverlap check whether the overlap is lower than the maximum allowed
 overlap 
+@param checkProjInRec check whether the projection of the contact point or the
+center of mass belongs to the rectangle
 @param checkCGInRec check whether the projection of the center of mass of the
 non Rectangle rigid body belongs to the rectangle */
 PointContact ClosestPointRECTANGLE( RigidBodyWithCrust const& rbA ,
-  RigidBodyWithCrust const& rbB, bool const& checkoverlap,
-  bool checkCGInRec = false );
+  RigidBodyWithCrust const& rbB, bool checkoverlap,
+  bool checkProjInRec,
+  bool checkCGInRec );
 
 #endif
