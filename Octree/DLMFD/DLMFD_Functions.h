@@ -642,31 +642,19 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
 	dynPDBarray* deactivatedIndexFieldValues_,
 	bool* at_least_one_deactivated_ ) 
 //----------------------------------------------------------------------------
-{  
-  Point lpoint;
-  int i;
-  Cache* fdlocal;
-   
-  fdlocal = (Cache*){calloc(dlm_bd.m, sizeof(Cache))};
-  
-  for (i=0;i<dlm_bd.m;i++) 
+{    
+  for (int i=0;i<dlm_bd.m;i++) 
   {
     # if dimension == 2 
-        lpoint = locate( dlm_bd.x[i], dlm_bd.y[i] );
+        foreach_point( serial, dlm_bd.x[i], dlm_bd.y[i] )
     # elif dimension == 3
-        lpoint = locate( dlm_bd.x[i], dlm_bd.y[i], dlm_bd.z[i] );
+        foreach_point( serial, dlm_bd.x[i], dlm_bd.y[i], dlm_bd.z[i] )
     # endif    
 
-    if ( (lpoint.level) == depth() ) 
-    {
-      /* Create a cache for each fictitious domain's boundary point */
-      cache_append( &fdlocal[i], lpoint, 0 );
-	
-      foreach_cache(fdlocal[i]) 
-      {	
+    if ( level == depth() ) 
+    {      
 	/* Tag cell only if it was not tagged by another rigid body, else
-	reinitialize to -1 and store the indices of the BP to be deactivated 
-	in both rigid bodies */
+	store the indices of the BP to be deactivated in both rigid bodies */
 	if ( Index.x[] < 0 )
 	{
 	  Index.x[] = i;
@@ -682,24 +670,16 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.y[]) );
 	  *at_least_one_deactivated_ = true;
 	}
-      }
     }
-    else if ( (lpoint.level) != - 1 ) 
+    else  
       printf( "On thread %d, point dlmfd %d of RB %lu at (%f, %f, %f) is in a"
 	" cell that has not the maximum level of refinement %d, it "
 	"is on level %d \n", pid(), i, kk, dlm_bd.x[i], dlm_bd.y[i], 
         # if dimension == 3 
             dlm_bd.z[i], 
         # endif	
-	depth(), lpoint.level );    
-  }
-   
-  for (i=0;i<dlm_bd.m;i++)
-    free(fdlocal[i].p);
-  
-  free (fdlocal);
-  
-  synchronize((scalar*) {Index});
+	depth(), level );    
+  }    
 }
 
 
@@ -1059,115 +1039,115 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag,
 	const vector Index, const int cacheflag ) 
 //----------------------------------------------------------------------------
 {
-  for (size_t k = 0; k < nrb; k++) 
-  {  
-    coord rel = {0., 0., 0.};
-    coord relnl = {0., 0., 0.};
-    int NCX, CX, weight_id;
-    size_t goflag = 0;
-    coord lambdacellpos = {0., 0., 0.};
-    coord lambdapos = {0., 0., 0.};
-    coord localcellpos = {0., 0., 0.};
+  coord rel = {0., 0., 0.};
+  coord relnl = {0., 0., 0.};
+  int NCX, CX, weight_id, k, nrbID = 0;
+  int rbID[20], pnumToIndex[nrb], pnum, bpnum; 
+  size_t goflag = 0;
+  coord lambdacellpos = {0., 0., 0.};
+  coord lambdapos = {0., 0., 0.};
+  coord localcellpos = {0., 0., 0.};
  
-    RigidBodyBoundary dlm_lambda = allrbs[k].s;
-    GeomParameter const* gcp = &(allrbs[k].g);
-    Cache* Boundary = &(allrbs[k].Boundary);
-        
-    foreach_level(MAXLEVEL,serial) 
-    {      
-      localcellpos.x = x;
-      localcellpos.y = y;
-#     if dimension == 3 
-        localcellpos.z = z;
-#     endif
-
-      /* IMPORTANT REMARK: we initialize the goflag variable to 0 outside 
-      the foreach_neighbor() because a cell might belong to 2 or more 
-      different Lagrange multiplier stencils of a given rigid body but we 
-      want to flag it and add it to the reduced domain cache once only. 
-      If a cell is not flagged in assign_weight_id_quad_outward, the
-      value of goflag is unchanged (and not set to 0), so once goflag is set 
-      to 1 by one of the calls to assign_weight_id_quad_outward within the 
-      foreach_neighbor loop, it stays at 1.      
-      Later, when we compute the contribution of this cell to the different 
-      stencils in DLM_Uzawa_velocity with the function reversed_weight, the 
-      contribution of this cell to each stencil will be properly computed. */
-      goflag = 0; 
-             
-      // Check if there is a Lagrange multiplier in the neigborhood of this 
-      // cell
-      foreach_neighbor() 
-      {
-	if ( (int)Index.x[] > -1 && level == depth() 
-		&& is_leaf(cell) && allrbs[k].pnum == (int)Index.y[] ) 
-	{
-	  lambdacellpos.x = x; 
-	  lambdacellpos.y = y; 
-	  lambdapos.x = dlm_lambda.x[(int)Index.x[]];
-	  lambdapos.y = dlm_lambda.y[(int)Index.x[]];	
-#         if dimension == 3
-	    lambdacellpos.z = z;
-	    lambdapos.z = dlm_lambda.z[(int)Index.x[]];
-#         endif
-
-          /* Compute relative vector from the cell (containning the boundary) 
-	  position to the boundary's (analytical) position */
-          foreach_dimension() rel.x = lambdapos.x - lambdacellpos.x;
-
-          /* In a periodic case, the position of the Lagrange multipliers on 
-	  the boundary are those of the master rigid body, i.e., they are not 
-	  shifted for each periodic clone. Therefore we may have a case where 
-	  the cell and the position of the Lagrange multiplier are on opposite 
-	  side of the domain. The solution is to subtract/add the periodic 
-	  domain length L0 when this happens */
-          foreach_dimension()
-          {
-            if ( rel.x > L0/2. ) rel.x = rel.x - L0;
-            else if ( rel.x < -L0/2. ) rel.x = rel.x + L0;
-          }
-	  
-          /* Reset dial integers */
-	  NCX = 0; CX = 0; weight_id = 0;
-
-          /* Assign quadrant number CX defining relative position of the 
-	  Lagrange point with respect to the center of the cell it belongs to */
-          assign_dial( rel, &CX );
-
-          /* Assign quadrant number NCX given by the direction of the normal 
-	  over the geometric boundary of the rigid body */ 
-          assign_dial_fd_boundary( &allrbs[k], lambdapos, gcp, Delta, 
-	  	&NCX );
-
-          /* Compute relative vector from the cell to the cell that contains 
-	  the Lagrange multiplier */
-          foreach_dimension() relnl.x = lambdacellpos.x - localcellpos.x;
-	
-	  /* Assign weight id if this cell is flagged ( goflag = 1 ) */
-	  assign_weight_id_quad_outward( NCX, CX, relnl, Delta, &weight_id, 
-	  	&goflag );
-	} // end if (Index.x[] > -1)
-      } // end foreach_neigboor loop
-
-      /* If the cell belongs to at least one stencil of a Lagrange multiplier 
-      tag it and add it the reduced domain of this RigidBody to optimize the 
-      stencil-traversal cost */
-      if ( goflag == 1 ) 
-      {
-	Flag[] = 1;
-	if ( cacheflag == 1 ) 
-	{		
-	  Point ppp;
-	  ppp.i = point.i;
-          ppp.j = point.j;
-          ppp.k = point.k;			
-          ppp.level = point.level;	  
-	  cache_append( Boundary, ppp, 0 );
-	}
-      }
-    }  
-  } // end loop on rigid body id 
+  GeomParameter const* gcp = NULL;
   
-  synchronize({Flag});     
+  // Relationship between rigid body number and their position in the 
+  // vector of rigid bodies
+  for (int m=0;m<nrb;++m) pnumToIndex[allrbs[m].pnum] = m;
+
+  foreach_level(MAXLEVEL,serial) 
+  {      
+    localcellpos.x = x;
+    localcellpos.y = y;
+#   if dimension == 3 
+      localcellpos.z = z;
+#   endif
+    nrbID = 0;
+
+    // Check if there is a Lagrange multiplier in the neigborhood of this 
+    // cell
+    foreach_neighbor() 
+    {
+      if ( (int)Index.x[] > -1 && level == depth() && is_leaf(cell) ) 
+      {
+        goflag = 0;
+	bpnum = (int)Index.x[];
+	pnum = (int)Index.y[];
+	k = pnumToIndex[pnum];  
+	gcp = &(allrbs[k].g); 	
+	lambdacellpos.x = x; 
+	lambdacellpos.y = y; 
+	lambdapos.x = allrbs[k].s.x[bpnum];
+	lambdapos.y = allrbs[k].s.y[bpnum];	
+#       if dimension == 3
+	  lambdacellpos.z = z;
+	  lambdapos.z = allrbs[k].s.z[bpnum];
+#       endif
+
+        /* Compute relative vector from the cell (containning the boundary) 
+	position to the boundary's (analytical) position */
+        foreach_dimension() rel.x = lambdapos.x - lambdacellpos.x;
+
+        /* In a periodic case, the position of the Lagrange multipliers on 
+	the boundary are those of the master rigid body, i.e., they are not 
+	shifted for each periodic clone. Therefore we may have a case where 
+	the cell and the position of the Lagrange multiplier are on opposite 
+	side of the domain. The solution is to subtract/add the periodic 
+	domain length L0 when this happens */
+        foreach_dimension()
+        {
+          if ( rel.x > L0/2. ) rel.x = rel.x - L0;
+          else if ( rel.x < -L0/2. ) rel.x = rel.x + L0;
+        }
+	  
+        /* Reset dial integers */
+	NCX = 0; CX = 0; weight_id = 0;
+
+        /* Assign quadrant number CX defining relative position of the 
+	Lagrange point with respect to the center of the cell it belongs to */
+        assign_dial( rel, &CX );
+
+        /* Assign quadrant number NCX given by the direction of the normal 
+	over the geometric boundary of the rigid body */ 
+        assign_dial_fd_boundary( &allrbs[k], lambdapos, gcp, Delta, &NCX );
+
+        /* Compute relative vector from the cell to the cell that contains 
+	the Lagrange multiplier */
+        foreach_dimension() relnl.x = lambdacellpos.x - localcellpos.x;
+	
+	/* Assign weight id if this cell is flagged ( goflag = 1 ) */
+	assign_weight_id_quad_outward( NCX, CX, relnl, Delta, &weight_id, 
+	  	&goflag );
+		
+	if ( goflag == 1 )
+	{
+	  bool already_inserted = false;
+	  for (int m=0;m<nrbID;++m)
+	    if ( rbID[m] == k ) already_inserted = true;
+	  if ( !already_inserted ) { rbID[nrbID] = k; ++nrbID; }  
+	}		
+      } // end if (Index.x[] > -1)
+    } // end foreach_neigboor loop
+    
+    /* If the cell belongs to at least one stencil of a Lagrange multiplier 
+    of a rigid body tag it and add it the reduced domain of all rigid body
+    stencils to optimize the stencil-traversal cost */
+    if ( nrbID ) 
+    {
+      Flag[] = 1;
+      if ( cacheflag == 1 ) 
+      {		
+	Point ppp;
+	ppp.i = point.i;
+        ppp.j = point.j;
+        ppp.k = point.k;			
+        ppp.level = point.level;	  
+	for (int m=0;m<nrbID;++m)	
+	  cache_append( &(allrbs[rbID[m]].Boundary), ppp, 0 );
+      }
+    }    
+  }
+
+  synchronize({Flag});       
 }
 
 
