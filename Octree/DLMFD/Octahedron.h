@@ -90,7 +90,7 @@ void create_FD_Boundary_Octahedron( GeomParameter const* gcp,
 		setPeriodicRefCenter );
 			
         foreach_dimension()
-	  dlm_bd->x[isb] = pos.x;
+	  dlm_bd->bp[isb].x = pos.x;
 
         isb++;
       }
@@ -158,7 +158,7 @@ void create_FD_Boundary_Octahedron( GeomParameter const* gcp,
     	setPeriodicRefCenter );
 
     foreach_dimension()
-      dlm_bd->x[isb] = pos.x;
+      dlm_bd->bp[isb].x = pos.x;
 
     isb++;
   }

@@ -185,7 +185,7 @@ void create_FD_Boundary_Sphere( GeomParameter const* gcp,
     }
 
     foreach_dimension() 
-      dlm_bd->x[k] = pos.x;
+      dlm_bd->bp[k].x = pos.x;
   }
 
   if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,

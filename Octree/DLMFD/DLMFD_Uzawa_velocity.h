@@ -82,6 +82,7 @@ vector DLM_tu[];
 
 /** Number of rigid body dependent arrays */
 RigidBody* allRigidBodies = NULL;
+RigidBody* ReferenceRigidBodies = NULL;
 double** DLMFDtoGS_vel = NULL;
 double* vpartbuf = NULL;
 FILE** pdata = NULL;
@@ -276,7 +277,7 @@ void DLMFD_Uzawa_velocity( const int i )
   double DLM_alpha = 0., DLM_beta = 0.;
   double DLM_tol = DLM_UZAWA_TOL, DLM_nr2 = 0., DLM_nr2_km1 = 0., DLM_wv = 0.;
   int ki = 0, DLM_maxiter = 200, allDLMFDcells = 0, allDLMFDpts = 0, 
-  	total_number_of_cells = 0;
+  	total_number_of_cells = 0, indexbp = 0;
   double rho_f = FLUID_DENSITY;
 
 # if  _MPI
@@ -607,16 +608,17 @@ void DLMFD_Uzawa_velocity( const int i )
 
         foreach_neighbor() 
         {
-	  if ( (int)DLM_Index.x[] > -1 && level == depth() 
+	  indexbp = (int)DLM_Index.x[];
+	  if ( indexbp > -1 && level == depth() 
 		&& is_leaf(cell) && (int)DLM_Index.y[] == pp->pnum ) 
 	  {
 	    lambdacellpos.x = x; 
 	    lambdacellpos.y = y; 
-	    lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	    lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];	  
+	    lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	    lambdapos.y = (*sbm[k]).bp[indexbp].y;	  
 #           if dimension == 3
 	      lambdacellpos.z = z;
-	      lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	      lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #           endif
 	    
 	    weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
@@ -655,12 +657,13 @@ void DLMFD_Uzawa_velocity( const int i )
         RigidBody* pp = &allRigidBodies[k];
         foreach_cache ((*Boundary[k])) 
         {
-          if ( DLM_Index.x[] > -1 && (int)DLM_Index.y[] == pp->pnum ) 
+          indexbp = (int)DLM_Index.x[];
+	  if ( indexbp > -1 && (int)DLM_Index.y[] == pp->pnum ) 
           {
-	    lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	    lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];
+	    lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	    lambdapos.y = (*sbm[k]).bp[indexbp].y;
 #           if dimension == 3
-	      lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	      lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #           endif
 
 #           if TRANSLATION
@@ -1008,15 +1011,16 @@ void DLMFD_Uzawa_velocity( const int i )
 #       if DLMFD_OPT
           ndof = 0;
 #       endif      
-        if ( DLM_Index.x[] > -1 && (int)DLM_Index.y[] == pp->pnum ) 
+        indexbp = (int)DLM_Index.x[];
+	if ( indexbp > -1 && (int)DLM_Index.y[] == pp->pnum ) 
         {
 	  lambdacellpos.x = x; 
 	  lambdacellpos.y = y; 
-	  lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	  lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];
+	  lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	  lambdapos.y = (*sbm[k]).bp[indexbp].y;
 #         if dimension == 3
 	    lambdacellpos.z = z;
-	    lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	    lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #         endif
 
 	  foreach_dimension() 
@@ -1275,7 +1279,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #           endif
 
             foreach_dimension() 
-	      sum.x = 0; 
+	      sum.x = 0.; 
 
             foreach_neighbor() 
 	    {
@@ -1315,12 +1319,13 @@ void DLMFD_Uzawa_velocity( const int i )
 	{	  
           foreach_cache((*Boundary[k])) 
           {
-            if ( DLM_Index.x[] > -1 && (int)DLM_Index.y[] == pp->pnum ) 
+            indexbp = (int)DLM_Index.x[];
+	    if ( indexbp > -1 && (int)DLM_Index.y[] == pp->pnum ) 
             {
-	      lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	      lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];	
+	      lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	      lambdapos.y = (*sbm[k]).bp[indexbp].y;	
 #             if dimension == 3
-	        lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	        lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #             endif
 
 #             if TRANSLATION
@@ -1585,7 +1590,7 @@ void DLMFD_Uzawa_velocity( const int i )
         int endloopv = RUloop.nv, pos = 0, endlooptu = 0;  
         for (int k=0; k<endloopv; ++k )
         {
-          sum.x = 0; sum.y = 0; sum.z = 0;
+          sum.x = 0.; sum.y = 0.; sum.z = 0.;
           endlooptu = RUloop.ndof[k] + pos;
           for (int l=pos;l<endlooptu;++l)
           {
@@ -1606,21 +1611,22 @@ void DLMFD_Uzawa_velocity( const int i )
       
           foreach_cache((*Boundary[k])) 
           {
-	    if ( DLM_Index.x[] > -1 && (int)DLM_Index.y[] == pp->pnum ) 
+	    indexbp = (int)DLM_Index.x[];
+	    if ( indexbp > -1 && (int)DLM_Index.y[] == pp->pnum ) 
 	    {
 	      lambdacellpos.x = x; 
 	      lambdacellpos.y = y;
-	      lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	      lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];
+	      lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	      lambdapos.y = (*sbm[k]).bp[indexbp].y;
 #             if dimension == 3
 	        lambdacellpos.z = z;
-	        lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	        lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #             endif
 
 	      foreach_dimension() 
-	        sum.x = 0; 
+	        sum.x = 0.; 
 		
-	      double testweight = 0.;
+	      testweight = 0.;
 
 	      foreach_neighbor() 
 	      {
@@ -1658,12 +1664,13 @@ void DLMFD_Uzawa_velocity( const int i )
         {
           foreach_cache((*Boundary[k])) 
           {
-	    if ( DLM_Index.x[] > -1 && (int)DLM_Index.y[] == pp->pnum ) 
+	    indexbp = (int)DLM_Index.x[];
+	    if ( indexbp > -1 && (int)DLM_Index.y[] == pp->pnum ) 
 	    {    
-	      lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	      lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];
+	      lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	      lambdapos.y = (*sbm[k]).bp[indexbp].y;
 #             if dimension == 3
-	        lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	        lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #             endif
 
 #             if TRANSLATION
@@ -1826,19 +1833,20 @@ void DLMFD_Uzawa_velocity( const int i )
 
           foreach_neighbor() 
           {
-	    if ( (int)DLM_Index.x[] > -1 && level == depth() && 
+	    indexbp = (int)DLM_Index.x[];
+	    if ( indexbp > -1 && level == depth() && 
 		is_leaf(cell) && (int)DLM_Index.y[] == k ) 
 	    {
 	      lambdacellpos.x = x;
 	      lambdacellpos.y = y;
-	      lambdapos.x = (*sbm[k]).x[(int)DLM_Index.x[]];
-	      lambdapos.y = (*sbm[k]).y[(int)DLM_Index.x[]];	
+	      lambdapos.x = (*sbm[k]).bp[indexbp].x;
+	      lambdapos.y = (*sbm[k]).bp[indexbp].y;	
 #             if dimension == 3
 	        lambdacellpos.z = z;
-	        lambdapos.z = (*sbm[k]).z[(int)DLM_Index.x[]];
+	        lambdapos.z = (*sbm[k]).bp[indexbp].z;
 #             endif
 
-	      weight = reversed_weight (pp, weightcellpos, lambdacellpos, 
+	      weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
 	  	lambdapos, Delta );
 	  
 	      foreach_dimension()

@@ -64,11 +64,10 @@ enum RigidBodyType {
 
  
 
-/** Structure for the rigid body boundary points. */
+/** Structure for the rigid body boundary points */
 typedef struct {
-  double* x;
-  double* y;
-  double* z;
+  coord* bp;
+  coord* normal;
   bool* deactivated;
   int m;
 } RigidBodyBoundary;
@@ -118,6 +117,8 @@ typedef struct {
 /** Rigid body geometric parameters */
 typedef struct {
   coord center;
+  coord BBmin;
+  coord BBmax;
   coord* perclonecenters;  
   double radius;
   int ncorners;
@@ -143,6 +144,7 @@ typedef struct {
 /** Set of parameters describing a rigid body */
 typedef struct {
   size_t pnum;
+  size_t classID;
   char typetag[3];
   enum RigidBodyType type;
   enum RigidBodyShape shape;  
@@ -301,13 +303,8 @@ trace void synchronize( scalar* list )
 void allocate_RigidBodyBoundary( RigidBodyBoundary* sbm, const int m ) 
 //----------------------------------------------------------------------------
 {
-  sbm->x = (double*) calloc( m, sizeof(double) ); 
-  sbm->y = (double*) calloc( m, sizeof(double) );
-# if dimension == 3  
-    sbm->z = (double*) calloc( m, sizeof(double) );
-# else
-    sbm->z = NULL;
-# endif
+  sbm->bp = (coord*) calloc( m, sizeof(coord) );
+  sbm->normal = (coord*) calloc( m, sizeof(coord) );   
   sbm->deactivated = (bool*) calloc( m, sizeof(bool) );
   sbm->m = m;
 }
@@ -320,11 +317,8 @@ void allocate_RigidBodyBoundary( RigidBodyBoundary* sbm, const int m )
 void reallocate_RigidBodyBoundary( RigidBodyBoundary* sbm, const int m ) 
 //----------------------------------------------------------------------------
 {
-  sbm->x = (double*) realloc( sbm->x, m * sizeof(double) ); 
-  sbm->y = (double*) realloc( sbm->y, m * sizeof(double) );  
-# if dimension == 3 
-    sbm->z = (double*) realloc( sbm->z, m * sizeof(double) );
-# endif 
+  sbm->bp = (coord*) realloc( sbm->bp, m * sizeof(coord) ); 
+  sbm->normal = (coord*) realloc( sbm->normal, m * sizeof(coord) );   
   sbm->deactivated = (bool*) realloc( sbm->deactivated, m * sizeof(bool) );       
   sbm->m = m;
 }
@@ -337,11 +331,8 @@ void reallocate_RigidBodyBoundary( RigidBodyBoundary* sbm, const int m )
 void free_RigidBodyBoundary( RigidBodyBoundary* sbm ) 
 //----------------------------------------------------------------------------
 {
-  free( sbm->x ); sbm->x = NULL;
-  free( sbm->y ); sbm->y = NULL;
-# if dimension == 3 
-    free( sbm->z ); sbm->z = NULL;
-# endif 
+  free( sbm->bp ); sbm->bp = NULL;
+  free( sbm->normal ); sbm->normal = NULL;  
   free( sbm->deactivated ); sbm->deactivated = NULL;
   sbm->m = 0;  
 }
@@ -646,9 +637,9 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
   for (int i=0;i<dlm_bd.m;i++) 
   {
     # if dimension == 2 
-        foreach_point( serial, dlm_bd.x[i], dlm_bd.y[i] )
+        foreach_point( serial, dlm_bd.bp[i].x, dlm_bd.bp[i].y )
     # elif dimension == 3
-        foreach_point( serial, dlm_bd.x[i], dlm_bd.y[i], dlm_bd.z[i] )
+        foreach_point( serial, dlm_bd.bp[i].x, dlm_bd.bp[i].y, dlm_bd.bp[i].z )
     # endif    
 
     if ( level == depth() ) 
@@ -674,9 +665,9 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
     else  
       printf( "On thread %d, point dlmfd %d of RB %lu at (%f, %f, %f) is in a"
 	" cell that has not the maximum level of refinement %d, it "
-	"is on level %d \n", pid(), i, kk, dlm_bd.x[i], dlm_bd.y[i], 
+	"is on level %d \n", pid(), i, kk, dlm_bd.bp[i].x, dlm_bd.bp[i].y, 
         # if dimension == 3 
-            dlm_bd.z[i], 
+            dlm_bd.bp[i].z, 
         # endif	
 	depth(), level );    
   }    
@@ -877,24 +868,24 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
       {
         deactivate = false;
 	if ( !Period.x )
-          if ( allrbs[(size_t)Index.y[]].s.x[(size_t)Index.x[]] 
+          if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].x 
 	  		> L0 - critical_distance + X0 
-		|| allrbs[(size_t)Index.y[]].s.x[(size_t)Index.x[]]  
+		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].x  
 	  		< critical_distance + X0 )
 	    deactivate = true;
 	    	    	    
         if ( !Period.y )
-          if ( allrbs[(size_t)Index.y[]].s.y[(size_t)Index.x[]] 
+          if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].y 
 	  		> L0 - critical_distance + Y0 
-		|| allrbs[(size_t)Index.y[]].s.y[(size_t)Index.x[]] 
+		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].y 
 			< critical_distance + Y0 )
 	    deactivate = true;
 
 #       if dimension == 3
           if ( !Period.z )
-            if ( allrbs[(size_t)Index.y[]].s.z[(size_t)Index.x[]] 
+            if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].z 
 	    		> L0 - critical_distance + Z0 
-		|| allrbs[(size_t)Index.y[]].s.z[(size_t)Index.x[]] 
+		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].z 
 			< critical_distance + Z0 )
 	      deactivate = true;
 #       endif 
@@ -918,10 +909,10 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
       {
 	RBid0 = (size_t)Index.y[];
 	PTid0 = (size_t)Index.x[];
-        x0 = allrbs[RBid0].s.x[PTid0]; 
-	y0 = allrbs[RBid0].s.y[PTid0]; 
+        x0 = allrbs[RBid0].s.bp[PTid0].x; 
+	y0 = allrbs[RBid0].s.bp[PTid0].y; 
 #       if dimension == 3	
-	  z0 = allrbs[RBid0].s.z[PTid0];
+	  z0 = allrbs[RBid0].s.bp[PTid0].z;
 #       endif 	  
 	deactivate = false;
 	
@@ -942,11 +933,12 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
 //                   ) < critical_distance )
 // 		  deactivate = true;
 		  
-		if ( abs( allrbs[RBid1].s.x[PTid1] - x0 ) < critical_distance 
-			|| abs( allrbs[RBid1].s.y[PTid1] - y0 ) 
+		if ( abs( allrbs[RBid1].s.bp[PTid1].x - x0 ) < critical_distance
+			|| abs( allrbs[RBid1].s.bp[PTid1].y - y0 ) 
 				< critical_distance
 #                 if dimension == 3	
-	            || abs( allrbs[RBid1].s.z[PTid1] - z0 ) < critical_distance
+	            || abs( allrbs[RBid1].s.bp[PTid1].z - z0 ) 
+		    	< critical_distance
 #                 endif
                   ) deactivate = true;		  		 
               }
@@ -1076,11 +1068,11 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag,
 	gcp = &(allrbs[k].g); 	
 	lambdacellpos.x = x; 
 	lambdacellpos.y = y; 
-	lambdapos.x = allrbs[k].s.x[bpnum];
-	lambdapos.y = allrbs[k].s.y[bpnum];	
+	lambdapos.x = allrbs[k].s.bp[bpnum].x;
+	lambdapos.y = allrbs[k].s.bp[bpnum].y;	
 #       if dimension == 3
 	  lambdacellpos.z = z;
-	  lambdapos.z = allrbs[k].s.z[bpnum];
+	  lambdapos.z = allrbs[k].s.bp[bpnum].z;
 #       endif
 
         /* Compute relative vector from the cell (containning the boundary) 
@@ -1576,11 +1568,11 @@ void computeHydroForceTorque( RigidBody* allrbs, const size_t nrb, FILE** sl,
     {
       if ( Index.x[] > -1 && allrbs[k].pnum == (int)Index.y[] ) 
       {
-	lambdapos.x = (*sbm).x[(int)Index.x[]];
-	lambdapos.y = (*sbm).y[(int)Index.x[]];
+	lambdapos.x = (*sbm).bp[(int)Index.x[]].x;
+	lambdapos.y = (*sbm).bp[(int)Index.x[]].y;
 	lambdapos.z = 0.;
 #       if dimension == 3
-	  lambdapos.z = (*sbm).z[(int)Index.x[]];
+	  lambdapos.z = (*sbm).bp[(int)Index.x[]].z;
 #       endif
 
 	/* Compute Fh = <lambda,V>_P */

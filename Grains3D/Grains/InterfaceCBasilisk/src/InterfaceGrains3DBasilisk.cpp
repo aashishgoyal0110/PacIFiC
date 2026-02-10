@@ -138,6 +138,40 @@ extern "C" {
     grains->numberOfRBToFluid( nparticles, nobstacles );
   }
   
+  
+  
+  
+  void NumberOfReferenceRigidBodiesInBasilisk( size_t* nrefRB )
+  {
+    grains->numberOfReferenceRBToFluid( nrefRB );
+  }
+
+
+
+  
+  char* GrainsToBasiliskReference( int* pstrsize )
+  {
+    // We use the interface function of PeliGRIFF
+    istringstream iss;
+    grains->GrainsToFluidReference( iss );
+
+    // We remove the formatting and separate each entry by " "
+    string buff;
+    *pstrsize = int(iss.str().size()) + 1;    
+    char* pstr = new char [*pstrsize];
+    int pos = 0;
+    while ( iss >> buff )
+    {
+      std::strcpy( &pstr[pos], buff.c_str() );
+      pos += int(buff.size());
+      std::strcpy( &pstr[pos], " " ); 
+      pos += 1;     
+    }    
+    
+    // Return the pointer to the char
+    return pstr;
+  }  
+      
 #ifdef __cplusplus
 }
 #endif

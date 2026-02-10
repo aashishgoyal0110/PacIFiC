@@ -175,7 +175,7 @@ void create_FD_Boundary_Cone( GeomParameter const* gcp,
   foreach_dimension() pos.x = gcp->tcgp->BottomCenter.x;
   periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->x[isb] = pos.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
   isb++;
   
   // Bottom disk in concentric circles
@@ -207,7 +207,7 @@ void create_FD_Boundary_Cone( GeomParameter const* gcp,
         pos.x += gcp->tcgp->BottomCenter.x;
       periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-      foreach_dimension() dlm_bd->x[isb] = pos.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
       isb++;          
     }
   }
@@ -216,7 +216,7 @@ void create_FD_Boundary_Cone( GeomParameter const* gcp,
   foreach_dimension() pos.x = gcp->tcgp->TopCenter.x;
   periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->x[isb] = pos.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
   isb++;
 
   // Lateral surface
@@ -253,7 +253,7 @@ void create_FD_Boundary_Cone( GeomParameter const* gcp,
       periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
 		
-      foreach_dimension() dlm_bd->x[isb] = pos.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
       isb++;
     }         		    	
   }           

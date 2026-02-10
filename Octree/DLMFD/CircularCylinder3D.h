@@ -175,7 +175,7 @@ void create_FD_Boundary_CircularCylinder3D( GeomParameter const* gcp,
       periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
 		
-      foreach_dimension() dlm_bd->x[isb] = pos.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
       isb++;
     }
   }
@@ -184,13 +184,13 @@ void create_FD_Boundary_CircularCylinder3D( GeomParameter const* gcp,
   foreach_dimension() pos.x = gcp->cgp->BottomCenter.x;
   periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->x[isb] = pos.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
   isb++;
   		  
   foreach_dimension() pos.x = gcp->cgp->TopCenter.x;
   periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->x[isb] = pos.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
   isb++;  
 
   // Bottom and top disks in concentric circles 
@@ -216,7 +216,7 @@ void create_FD_Boundary_CircularCylinder3D( GeomParameter const* gcp,
         pos.x += gcp->cgp->BottomCenter.x;
       periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-      foreach_dimension() dlm_bd->x[isb] = pos.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
       isb++;      
       
       // Top disk
@@ -224,7 +224,7 @@ void create_FD_Boundary_CircularCylinder3D( GeomParameter const* gcp,
         pos.x += gcp->cgp->BottomToTopVec.x;
       periodic_correction( gcp, &pos, pPeriodicRefCenter, 
 		setPeriodicRefCenter );
-      foreach_dimension() dlm_bd->x[isb] = pos.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
       isb++;      
     }
   }

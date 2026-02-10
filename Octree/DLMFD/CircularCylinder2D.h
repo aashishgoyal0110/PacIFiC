@@ -148,8 +148,8 @@ void create_FD_Boundary_CircularCylinder2D( GeomParameter const* gcp,
 	  pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
     }
 
-    dlm_bd->x[i] = pos.x;
-    dlm_bd->y[i] = pos.y;
+    dlm_bd->bp[i].x = pos.x;
+    dlm_bd->bp[i].y = pos.y;
   }
 
   if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,

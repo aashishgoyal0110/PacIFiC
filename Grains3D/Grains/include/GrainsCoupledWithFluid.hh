@@ -82,6 +82,21 @@ class GrainsCoupledWithFluid : virtual public Grains
     @param is output stream */
     void GrainsToFluid( istringstream &is );
     
+    /** @brief Writes features of moving rigid bodies in a stream to be used
+    by the fluid flow solver
+    @param is output stream */
+    void GrainsToFluid2( istringstream &is );    
+    
+    /** @brief Number of reference rigid bodies to be sent to the fluid flow 
+    solver 
+    @param nrefRB */
+    void numberOfReferenceRBToFluid( size_t* nrefRB ) const;    
+    
+    /** @brief Writes features of reference rigid bodies in a stream to be used
+    by the fluid flow solver at initialization
+    @param is output stream */
+    void GrainsToFluidReference( istringstream &is );    
+    
     /** @brief Updates particles velocity with data from the fluid solver
     @param velocity_data_array velocity data array
     @param b_set_velocity_nm1_and_diff updates the velocity at the previous time

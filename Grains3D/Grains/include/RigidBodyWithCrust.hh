@@ -249,7 +249,7 @@ a rectangle
 @param rbB 2nd rigid body 
 @param checkoverlap check whether the overlap is lower than the maximum allowed
 overlap 
-@param checkCGInRec check whether the projection of the contact point or the
+@param checkProjInRec check whether the projection of the contact point or the
 center of mass belongs to the rectangle
 @param checkCGInRec check whether the projection of the center of mass of the
 non Rectangle rigid body belongs to the rectangle */

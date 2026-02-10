@@ -28,6 +28,10 @@ extern "C" {
   void SetInitialCycleNumber( int cycle0 );
   
   void NumberOfRigidBodiesInBasilisk( size_t* nparticles, size_t* nobstacles );
+  
+  void NumberOfReferenceRigidBodiesInBasilisk( size_t* nrefRB );
+  
+  char* GrainsToBasiliskReference( int* pstrsize );    
 
 #ifdef __cplusplus
 }

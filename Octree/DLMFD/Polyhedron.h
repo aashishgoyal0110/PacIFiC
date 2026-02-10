@@ -63,7 +63,7 @@ void distribute_points_edge( GeomParameter const* gcp, coord const corner1,
       	setPeriodicRefCenter );
       
       foreach_dimension()
-        dlm_bd->x[istart + i -1] = pos.x;
+        dlm_bd->bp[istart + i -1].x = pos.x;
     }
   }
 }

@@ -890,7 +890,11 @@ void GrainsCoupledWithFluid::doPostProcessing( size_t indent_width )
     // Write reload files
     saveReload( m_time );
   }
-}	
+}
+
+
+
+	
 // ----------------------------------------------------------------------------
 // Number of rigid bodies to be sent to the fluid flow solver */
 void GrainsCoupledWithFluid::numberOfRBToFluid( size_t* nparticles, 
@@ -903,6 +907,22 @@ void GrainsCoupledWithFluid::numberOfRBToFluid( size_t* nparticles,
     *nobstacles = obstaclesToFluid.size();
   }  
 }
+
+
+
+
+// ----------------------------------------------------------------------------
+// Number of rigid bodies to be sent to the fluid flow solver */
+void GrainsCoupledWithFluid::numberOfReferenceRBToFluid( size_t* nrefRB ) const
+{  
+  if ( m_processorIsActive )
+  {
+    list<Obstacle*> obstaclesToFluid = m_allcomponents.getObstaclesToFluid();
+    *nrefRB = m_allcomponents.getActiveParticles()->size() + 
+    	obstaclesToFluid.size();
+  }  
+}
+
 
 
 
@@ -1115,6 +1135,289 @@ void GrainsCoupledWithFluid::GrainsToFluid( istringstream &is )
 
     // Transfer from oss to iss
     is.str( particles_features.rdbuf()->str() );     
+  }  
+}
+
+
+
+
+// ----------------------------------------------------------------------------
+// Writes features of moving rigid bodies in a stream to be used by the 
+// fluid flow solver
+void GrainsCoupledWithFluid::GrainsToFluid2( istringstream &is )
+{
+  if ( m_processorIsActive )
+  {
+    list<Particle*> const* particles = m_allcomponents.getActiveParticles();
+    list<Obstacle*> obstaclesToFluid = m_allcomponents.getObstaclesToFluid();
+    ostringstream particles_features;
+    list<Particle*>::const_iterator particle, clone;
+    int componentIDinFluid = 0, particleID = 0, geomType = 0;
+    size_t nclonesper = 0, nparticles = 0;
+    Vector3 const* vtrans = NULL;
+    Vector3 const* vrot = NULL;
+    Point3 const* centre = NULL;
+    string particleType = "P";
+    Matrix mr;
+    multimap<int,Particle*> const* particlesPeriodicClones = 
+    	m_allcomponents.getPeriodicCloneParticles();
+    multimap<int,Particle*>::const_iterator imm;
+    pair < multimap<int,Particle*>::const_iterator,
+  	multimap<int,Particle*>::const_iterator > crange;	
+    Particle* periodic_clone = NULL ;
+    Vector3 periodicVector;
+    BBox bbox;
+    
+    // Order the list of particles by their ID num into m_orderedParticles 
+    nparticles = m_allcomponents.getTotalNumberPhysicalParticles();    
+    for (particle=particles->begin();particle!=particles->end();particle++)
+      if ( (*particle)->getTag() < 2 ) 
+        m_orderedParticles[(*particle)->getID()-1] = *particle;
+
+    // Total number of rigid bodies to send to the fluid flow solver
+    particles_features << nparticles + obstaclesToFluid.size() << endl;
+
+    // Particle features
+    // Note that componentIDinFluid = particleID - 1
+    for (size_t i=0;i<nparticles;++i,++componentIDinFluid)
+    {
+      if ( m_orderedParticles[i]->getActivity() == COMPUTE )      
+      {        
+	vtrans = m_orderedParticles[i]->getTranslationalVelocity();
+        vrot = m_orderedParticles[i]->getAngularVelocity();
+        centre = m_orderedParticles[i]->getPosition();
+        geomType = m_orderedParticles[i]->getGeometricType();
+        particleID = m_orderedParticles[i]->getID();
+	if ( componentIDinFluid != particleID - 1 )
+	  cout << "Warning: numbering problem in "
+	  	<< "GrainsCoupledWithFluid::GrainsToFluid" << endl;
+	nclonesper = particlesPeriodicClones->count( particleID ); 
+        particleType = "P";
+        if ( nclonesper ) particleType = "PP";
+        mr = m_orderedParticles[i]->getRigidBody()->getTransform()->getBasis();
+	bbox = m_orderedParticles[i]->BoundingBox();	
+
+        particles_features << componentIDinFluid << " " << geomType << endl;
+        particles_features << particleType << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[X] ) << " " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[Y] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[Z] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[X] ) << " " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[Y] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[Z] ) << " " << 		
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Z] ) << " " <<	
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Y] ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Z] ) << " " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( X ) ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( Y ) ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( Z ) ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( X ) ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( Y ) ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( Z ) ) << endl;
+			
+        if ( particleType == "PP" )
+        {
+          particles_features << nclonesper << endl;
+	  crange = particlesPeriodicClones->equal_range( particleID );
+	  for (imm=crange.first; imm!=crange.second;imm++)
+	  {
+	    periodic_clone = imm->second;
+            periodicVector = *(periodic_clone->getPosition()) - *centre;
+            particles_features << 
+	      	GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			periodicVector[X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			periodicVector[Y] ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			periodicVector[Z] ) << endl;	      
+	  }
+        }
+      }
+      else
+      {
+        particles_features << componentIDinFluid << " " << geomType << endl;
+        particles_features << "P " <<
+		"0. 0. 0. 0. 0. 0. " <<
+		"1. 0. 0. 0. 1. 0. 0. 0. 1. " 
+		"0. 0. 0. 0. 0. 0. 0. 0. 0." << endl;
+      }
+    }
+
+    // Obstacles to be sent to the fluid
+    list<Obstacle*>::const_iterator obst;
+    string obstacleType = "O";
+    geomType = int(m_allcomponents.getReferenceParticles()->size());    
+    for (obst=obstaclesToFluid.begin();obst!=obstaclesToFluid.end();obst++,
+    	componentIDinFluid++,geomType++)
+    {
+      vtrans = (*obst)->getTranslationalVelocity();
+      vrot = (*obst)->getAngularVelocity();
+      centre = (*obst)->getPosition();
+      mr = (*obst)->getRigidBody()->getTransform()->getBasis();
+      bbox = (*obst)->BoundingBox();
+
+      particles_features << componentIDinFluid << " " << geomType << endl;
+      particles_features << obstacleType << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[X] ) << " " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[Y] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vtrans)[Z] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[X] ) << " " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[Y] ) << " " << 			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*vrot)[Z] ) << " " << 		
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Z] ) << " " <<	
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Y] ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Z] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( X ) ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( Y ) ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getLower( Z ) ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( X ) ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( Y ) ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			bbox.getUpper( Z ) ) << endl;			   
+    }
+
+    // Transfer from oss to iss
+    is.str( particles_features.rdbuf()->str() );     
+  }  
+}
+
+
+
+
+// ----------------------------------------------------------------------------
+// Writes features of reference rigid bodies in a stream to be used by the 
+// fluid flow solver
+void GrainsCoupledWithFluid::GrainsToFluidReference( istringstream &is )
+{
+  if ( m_processorIsActive )
+  {
+    vector<Particle*> const* refParticles = 
+    	m_allcomponents.getReferenceParticles();
+    list<Obstacle*> obstaclesToFluid = m_allcomponents.getObstaclesToFluid();
+    ostringstream rb_features;
+    vector<Particle*>::const_iterator particle;
+    int geomType = 0, ncorners = 0;
+    double const* inertia;
+    double density = 0., mass = 0., radius = 0.;
+    
+    // Total number of reference rigid bodies to send to the fluid flow solver
+    rb_features << refParticles->size() + obstaclesToFluid.size() << endl;
+
+    // Particle features
+    for (particle=refParticles->begin();particle!=refParticles->end();
+    	particle++)
+    {
+      ncorners = (*particle)->getNbCorners();
+      geomType = (*particle)->getGeometricType();
+      inertia = (*particle)->getInertiaTensorBodyFixed();
+      density = (*particle)->getDensity();
+      mass = (*particle)->getMass();
+      radius = (*particle)->getCircumscribedRadius();
+      	
+      rb_features << geomType << " " << ncorners << endl;
+      rb_features << 
+      		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			density ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mass ) << " " <<			 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[0] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[1] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[2] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[3] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[4] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			inertia[5] ) << " ";		
+      rb_features << radius ;
+      (*particle)->writePositionInFluid( rb_features );
+    }
+
+    // Obstacles to be sent to the fluid
+    list<Obstacle*>::const_iterator obst;
+    geomType = int(refParticles->size());
+    for (obst=obstaclesToFluid.begin();obst!=obstaclesToFluid.end();obst++,
+    	geomType++)
+    {
+      radius = (*obst)->getCircumscribedRadius();
+      ncorners = (*obst)->getRigidBody()->getConvex()->getNbCorners();
+
+      rb_features << geomType << " " << ncorners << endl;
+      rb_features << "1000. 0. 0. 0. 0. 0. 0. 0. ";			
+      rb_features << radius ;
+      (*obst)->writePositionInFluid( rb_features );    
+    }
+
+    // Transfer from oss to iss
+    is.str( rb_features.rdbuf()->str() );     
   }  
 }
 

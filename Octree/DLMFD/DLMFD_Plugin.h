@@ -194,6 +194,7 @@ double imposed_periodicflowrate = 0.;
 size_t nbRigidBodies = 0;
 size_t nbParticles = 0;
 size_t NbObstacles = 0;
+size_t nbReferenceRigidBodies = 0; 
 
 
 # if EMBED
@@ -471,9 +472,9 @@ event init (i = 0)
                     for (int nk=-2; nk<=2; nk++) 
 		    {
                       Point point = locate( 
-		      	allRigidBodies[k].s.x[j] + ni * delta,
-          		allRigidBodies[k].s.y[j] + nj * delta,
-			allRigidBodies[k].s.z[j] + nk * delta );
+		      	allRigidBodies[k].s.bp[j].x + ni * delta,
+          		allRigidBodies[k].s.bp[j].y + nj * delta,
+			allRigidBodies[k].s.bp[j].z + nk * delta );
 		      cache_append( &(stencil[k][j]), point, 0 );
 		    }
 #                 endif
@@ -489,10 +490,10 @@ event init (i = 0)
                 if ( point.level >= 0 ) 
 	        {
                   coord dist;
-                  dist.x = x - allRigidBodies[k].s.x[j];
-                  dist.y = y - allRigidBodies[k].s.y[j];
+                  dist.x = x - allRigidBodies[k].s.bp[j].x;
+                  dist.y = y - allRigidBodies[k].s.bp[j].y;
 #                 if dimension > 2
-                    dist.z = z - allRigidBodies[k].s.z[j];
+                    dist.z = z - allRigidBodies[k].s.bp[j].z;
 #                 endif
 #                 if dimension < 3
                     if ( fabs(dist.x) <= 2. * Delta 

@@ -93,9 +93,9 @@ void output_vtu_dlmfd_bndpts( RigidBody const* allrb, const int np,
 	for (size_t j = 0; j < m; j++)
 	  if ( sbb->deactivated[j] == 0 )
 	  {  
-	    fprintf( fdlm, "%12.5e %12.5e", sbb->x[j], sbb->y[j] );
+	    fprintf( fdlm, "%12.5e %12.5e", sbb->bp[j].x, sbb->bp[j].y );
 #           if dimension == 3  
-              fprintf( fdlm, " %12.5e\n", sbb->z[j] );
+              fprintf( fdlm, " %12.5e\n", sbb->bp[j].z );
 #           else
               fprintf( fdlm, " 0.\n" );
 #           endif	
@@ -573,8 +573,7 @@ void reinitialize_vtk_restart( void )
     char filename_root[80] = "";
     char time_line[256] = "";
     char start[12] = ""; 
-    char start_ref_pvd[20] = "<DataSet";
-    char start_ref_series[30] = "{ \"name\":";    
+    char start_ref_pvd[20] = "<DataSet"; 
     sprintf( filename_root, "%s", RESULT_DIR );
     strcat( filename_root, "/" );  
     strcat( filename_root, RESULT_FLUID_ROOTFILENAME );
@@ -605,6 +604,7 @@ void reinitialize_vtk_restart( void )
 #   endif
 
 #   if PARAVIEW_HTG
+      char start_ref_series[30] = "{ \"name\":";   
       char filename_htg_series[80] = "";
       strcpy( filename_htg_series, filename_root );      
       strcat( filename_htg_series, ".vtkhdf.series" ); 
