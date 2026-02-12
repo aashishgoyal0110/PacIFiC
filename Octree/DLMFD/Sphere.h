@@ -96,6 +96,7 @@ void compute_nboundary_Sphere( GeomParameter const* gcp, int* nb )
 //----------------------------------------------------------------------------
 void create_FD_Boundary_Sphere( GeomParameter const* gcp,
 	RigidBodyBoundary* dlm_bd, const int nsphere, 
+	const bool accountForPeriodicity,
 	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
 //----------------------------------------------------------------------------
 {
@@ -157,38 +158,42 @@ void create_FD_Boundary_Sphere( GeomParameter const* gcp,
     pos.y = hydro_radius * sin( phik ) * sin( thetak ) + gcp->center.y;
     pos.z = hydro_radius * cos( thetak ) + gcp->center.z;
 
-    /* Check if the point falls outside of the domain */    
-    foreach_dimension()
+    /* Check if the point falls outside of the domain in case of periodicity */
+    if ( accountForPeriodicity )
     {
-      shift.x = 0.;      
-      if ( Period.x )
+      foreach_dimension()
       {
-	if ( pos.x > L0 + ori.x )
-	{  
-	  pos.x -= L0;
-	  shift.x = - L0;
-	}
-        else if ( pos.x < 0. + ori.x )
-	{
-	  pos.x += L0;
-	  shift.x = L0;
-	}
+        shift.x = 0.;      
+        if ( Period.x )
+        {
+	  if ( pos.x > L0 + ori.x )
+	  {  
+	    pos.x -= L0;
+	    shift.x = - L0;
+	  }
+          else if ( pos.x < 0. + ori.x )
+	  {
+	    pos.x += L0;
+	    shift.x = L0;
+	  }
+        }
       }
-    }
 
-    if ( setPeriodicRefCenter )
-    {
-      // Setting the periodic clone center vector field
-      foreach_point( pos.x, pos.y, pos.z )
-        foreach_dimension()
-	  pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
+      if ( setPeriodicRefCenter )
+      {
+        // Setting the periodic clone center vector field
+        foreach_point( pos.x, pos.y, pos.z )
+          foreach_dimension()
+	    pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
+      }
     }
 
     foreach_dimension() 
       dlm_bd->bp[k].x = pos.x;
   }
 
-  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
+  if ( accountForPeriodicity )
+    if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
   	pPeriodicRefCenter->y, pPeriodicRefCenter->z});
 }
 

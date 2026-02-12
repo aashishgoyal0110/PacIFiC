@@ -84,7 +84,7 @@ event GranularSolver_init (t < -1.)
   ReferenceRigidBodies = (RigidBody*) calloc( nbReferenceRigidBodies, 
   	sizeof(RigidBody) );
   pstr = CreateReferenceRBBasilisk( pstr, pstrsize, ReferenceRigidBodies,
-  	nbReferenceRigidBodies );
+  	nbReferenceRigidBodies, FLUID_DENSITY );
   free( pstr );
   
   if ( pid() == 0 )

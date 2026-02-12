@@ -245,7 +245,8 @@ void DLMFD_construction()
   synchronize((scalar*) {DLM_PeriodicRefCenter});
   
 # if RIGIDBODY_VERBOSE
-    print_all_rigidbodies( allRigidBodies, nbRigidBodies, &outputshift[0] );
+    print_all_rigidbodies( allRigidBodies, nbRigidBodies, nbParticles, 
+    	NbObstacles, &outputshift[0] );
 # endif
 
   // Free the array of deactivated boundary point indices

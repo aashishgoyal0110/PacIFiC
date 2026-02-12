@@ -352,6 +352,17 @@ event init (i = 0)
 # endif 
 
 
+  // Creates boundary points and normal vectors of reference rigid bodies
+  create_referencerigidbodies_boundary_geomfeatures( ReferenceRigidBodies, 
+  	nbReferenceRigidBodies );
+	
+	
+  // Print reference rigid bodies
+  char outputshift[1]="";
+  print_referencerigidbodies( ReferenceRigidBodies, nbReferenceRigidBodies, 
+    	&outputshift[0] );	  
+
+
   // Initialize/open all DLMFD file pointers
   init_file_pointers( allRigidBodies, nbRigidBodies, pdata, 
   	!RIGIDBODIES_AS_FIXED_OBSTACLES, fdata, &converge, &cellvstime, 

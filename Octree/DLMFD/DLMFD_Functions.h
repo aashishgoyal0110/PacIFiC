@@ -58,7 +58,8 @@ enum RigidBodyShape {
 enum RigidBodyType {
   PARTICLE,
   PERIODICPARTICLE,
-  OBSTACLE
+  OBSTACLE, 
+  REFERENCERIGIDBODY
 };
 
 
@@ -144,7 +145,7 @@ typedef struct {
 /** Set of parameters describing a rigid body */
 typedef struct {
   size_t pnum;
-  size_t classID;
+  size_t geomType;
   char typetag[3];
   enum RigidBodyType type;
   enum RigidBodyShape shape;  
@@ -606,17 +607,120 @@ void print_rigidbody( RigidBody const* p, char const* poshift )
 /** Prints all RigidBody* data */
 //----------------------------------------------------------------------------
 void print_all_rigidbodies( RigidBody const* allrbs, const size_t nrb,
-	char const* oshift )
+	const size_t npart, const size_t nobs, char const* oshift )
 //----------------------------------------------------------------------------
 {
-  if ( pid() == 0 ) printf( "%sNumber of rigid bodies / particles = %lu %lu\n",
-  	oshift, nbRigidBodies, nbParticles );
-  char poshift[20]="   ";
+  if ( pid() == 0 ) printf( "%sNumber of rigid bodies / particles / obstacles ="
+  	" %lu %lu %lu\n", oshift, nrb, npart, nobs );
+  char poshift[4]="   ";
   strcat( poshift, oshift );
   for (size_t k=0;k<nrb;k++)
   { 
-    if ( pid() == 0 ) printf( "%sParticle %lu\n", oshift, allrbs[k].pnum );    
+    if ( pid() == 0 ) printf( "%sRigid body %lu\n", oshift, allrbs[k].pnum );    
     print_rigidbody( &(allrbs[k]), &poshift[0] );
+  }
+}
+
+
+
+ 
+/** Prints data of a reference rigid body */
+//----------------------------------------------------------------------------
+void print_referencerigidbody( RigidBody const* p, char const* poshift )
+//----------------------------------------------------------------------------
+{
+  if ( pid() == 0 ) 
+  {
+    printf( "%sGeometric type = %lu\n", poshift, p->geomType ); 
+    printf( "%sTag = %s\n", poshift, p->typetag ); 
+    printf( "%sShape = ", poshift );
+    switch ( p->shape )
+    {
+      case SPHERE:
+        printf( "SPHERE" );
+        break;
+	  
+      case CIRCULARCYLINDER2D:
+        printf( "CIRCULARCYLINDER2D" );
+        break;
+	  
+      case CUBE:
+        printf( "CUBE" );
+        break;
+	
+      case TETRAHEDRON:
+        printf( "TETRAHEDRON" );
+	break;
+	
+      case OCTAHEDRON:
+        printf( "OCTAHEDRON" );
+	break;
+	
+      case ICOSAHEDRON:
+        printf( "ICOSAHEDRON" );
+	break;
+
+      case DODECAHEDRON:
+        printf( "DODECAHEDRON" );
+	break;
+	
+      case BOX:
+        printf( "BOX" );
+	break;
+	
+      case CIRCULARCYLINDER3D:
+        printf( "CIRCULARCYLINDER3D" );
+	break;
+
+      case CONE:
+        printf( "CONE" );
+	break;	
+	
+      case TRUNCATEDCONE:
+        printf( "TRUNCATEDCONE" );
+	break;				
+	  
+      default:
+        fprintf( stderr,"Unknown Rigid Body shape !!\n" );
+    }
+    printf( "\n" );
+    printf( "%sRadius = %e\n", poshift, p->g.radius );  
+    printf( "%sMass = %e\n", poshift, p->M ); 
+    printf( "%sVolume = %e\n", poshift, p->Vp );     
+    printf( "%sDensity = %e\n", poshift, p->rho_s ); 
+#   if dimension == 3
+        printf( "%sInertia tensor\n", poshift );
+        printf( "%s   Ixx = %e\n", poshift, p->Ip[0] );
+        printf( "%s   Iyy = %e\n", poshift, p->Ip[1] );	  
+        printf( "%s   Izz = %e\n", poshift, p->Ip[2] );	  
+        printf( "%s   Ixy = %e\n", poshift, p->Ip[3] );	  
+        printf( "%s   Ixz = %e\n", poshift, p->Ip[4] );	  
+        printf( "%s   Iyz = %e\n", poshift, p->Ip[5] );
+#   else
+      printf( "%s   Inertia tensor component Izz = %e\n", poshift, 
+		p->Ip[2] );
+#   endif
+  }             
+}  
+
+
+
+ 
+/** Prints reference RigidBody* data */
+//----------------------------------------------------------------------------
+void print_referencerigidbodies( RigidBody const* allrefrbs, 
+	const size_t nrefrb, char const* oshift )
+//----------------------------------------------------------------------------
+{
+  if ( pid() == 0 ) printf( "%sNumber of reference rigid bodies = %lu \n",
+  	oshift, nrefrb );
+  char poshift[4]="   ";
+  strcat( poshift, oshift );
+  for (size_t k=0;k<nrefrb;k++)
+  { 
+    if ( pid() == 0 ) printf( "%sReference rigid body %lu\n", oshift, 
+    	allrefrbs[k].geomType );    
+    print_referencerigidbody( &(allrefrbs[k]), &poshift[0] );
   }
 } 
 
@@ -1149,8 +1253,8 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
 /** Creates DLM/FD boundary points of a given rigid body. Sets the
 PeriodicRefCenter field only if setPeriodicRefCenter is true */
 //----------------------------------------------------------------------------
-void create_boundary_points( RigidBody* p, vector* pPeriodicRefCenter,
-	const bool setPeriodicRefCenter )
+void create_boundary_points( RigidBody* p, const bool accountForPeriodicity,
+	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
 //----------------------------------------------------------------------------
 {  
   GeomParameter gci = p->g;
@@ -1162,8 +1266,8 @@ void create_boundary_points( RigidBody* p, vector* pPeriodicRefCenter,
     case SPHERE:
       compute_nboundary_Sphere( &gci, &m );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Sphere( &gci, &(p->s), m, pPeriodicRefCenter, 
-      		setPeriodicRefCenter );
+      create_FD_Boundary_Sphere( &gci, &(p->s), m, accountForPeriodicity,
+      		pPeriodicRefCenter, setPeriodicRefCenter );
       break;
 	  
     case CIRCULARCYLINDER2D:
@@ -1270,7 +1374,7 @@ void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
     Cache* c = NULL;
 
 #   if DLMFD_BOUNDARYPOINTS
-      create_boundary_points( &(allrbs[k]), &PeriodicRefCenter, true );
+      create_boundary_points( &(allrbs[k]), true, &PeriodicRefCenter, true );
       fill_DLM_Index( rbnumToIndex, (allrbs[k].s), Index, allrbs[k].pnum, 
       	deactivatedBPindices_, deactivatedIndexFieldValues_, 
 	at_least_one_deactivated_ );
@@ -1297,7 +1401,22 @@ void create_rigidbodies_boundary_points( RigidBody* allrbs, const size_t nrb )
 {  
 # if DLMFD_BOUNDARYPOINTS
     for (size_t k = 0; k < nrb; k++) 
-      create_boundary_points( &(allrbs[k]), NULL, false );    
+      create_boundary_points( &(allrbs[k]), true, NULL, false );    
+# endif
+}
+
+
+
+
+/** Creates boundary points and normal vectors of reference rigid bodies */
+//----------------------------------------------------------------------------
+void create_referencerigidbodies_boundary_geomfeatures( RigidBody* allrefrbs, 
+	const size_t nrefrb )
+//----------------------------------------------------------------------------
+{  
+# if DLMFD_BOUNDARYPOINTS
+    for (size_t k = 0; k < nrefrb; k++) 
+      create_boundary_points( &(allrefrbs[k]), false, NULL, false );    
 # endif
 }
 
@@ -2016,6 +2135,56 @@ void inverse3by3matrix__( double Matrix[3][3], double inversedMatrix[3][3] )
   	- Matrix[0][0] * Matrix[2][1] ) / determinant;
   inversedMatrix[2][2] = ( Matrix[0][0] * Matrix[1][1] 
   	- Matrix[0][1] * Matrix[1][0]) / determinant ;
+}
+
+
+
+
+/** 3 x 3 matrix - vector dot product where the matrix is stored as a 
+double[][] */
+//----------------------------------------------------------------------------
+void matCoordDotProduct( double Matrix[3][3], const coord v, coord* res ) 
+//----------------------------------------------------------------------------
+{
+  (*res).x = Matrix[0][0] * v.x + Matrix[0][1] * v.y + Matrix[0][2] * v.z;
+  (*res).y = Matrix[1][0] * v.x + Matrix[1][1] * v.y + Matrix[1][2] * v.z;
+  (*res).z = Matrix[2][0] * v.x + Matrix[2][1] * v.y + Matrix[2][2] * v.z;
+}
+
+
+
+
+/** 3 x 3 matrix - 3 x 3 matrix dot product where both matrices are stored as
+double[][] */
+//----------------------------------------------------------------------------
+void matMatDotProduct( const double A[3][3], const double B[3][3], 
+	double Res[3][3] ) 
+//----------------------------------------------------------------------------
+{
+  for (size_t i=0;i<3;++i)
+    for (size_t j=0;j<3;++j)
+    {
+      Res[i][j] = 0.;
+      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[k][j];
+    }    
+}
+
+
+
+
+/** 3 x 3 matrix - 3 x 3 matrix transposed dot product where both matrices are 
+stored as double[][] */
+//----------------------------------------------------------------------------
+void matMatTransposedDotProduct( const double A[3][3], const double B[3][3], 
+	double Res[3][3] ) 
+//----------------------------------------------------------------------------
+{
+  for (size_t i=0;i<3;++i)
+    for (size_t j=0;j<3;++j)
+    {
+      Res[i][j] = 0.;
+      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[j][k];
+    }    
 }
 
 
