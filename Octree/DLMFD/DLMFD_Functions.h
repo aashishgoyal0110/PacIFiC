@@ -615,7 +615,7 @@ void print_all_rigidbodies( RigidBody const* allrbs, const size_t nrb,
   strcat( poshift, oshift );
   for (size_t k=0;k<nrb;k++)
   { 
-    if ( pid() == 0 ) printf( "%sParticle %lu\n", oshift, k );    
+    if ( pid() == 0 ) printf( "%sParticle %lu\n", oshift, allrbs[k].pnum );    
     print_rigidbody( &(allrbs[k]), &poshift[0] );
   }
 } 
@@ -628,8 +628,8 @@ number to the x component of the index field and the rigid body number to the y
 component of the index field. If there is no DLMFD boundary point, index.x is
 set to -1 */
 //----------------------------------------------------------------------------
-void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index, 
-	const size_t kk, dynUIarray* deactivatedBPindices_,
+void fill_DLM_Index( size_t const* rbnumToIndex, const RigidBodyBoundary dlm_bd,
+	vector Index, const size_t pnum, dynUIarray* deactivatedBPindices_,
 	dynPDBarray* deactivatedIndexFieldValues_,
 	bool* at_least_one_deactivated_ ) 
 //----------------------------------------------------------------------------
@@ -649,13 +649,14 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
 	if ( Index.x[] < 0 )
 	{
 	  Index.x[] = i;
-	  Index.y[] = kk;
+	  Index.y[] = pnum;
 	}
 	else
 	{
-	  append_dynUIarray( deactivatedBPindices_, Index.y[] );
-	  append_dynUIarray( deactivatedBPindices_, Index.x[] );	  
-	  append_dynUIarray( deactivatedBPindices_, kk );
+	  append_dynUIarray( deactivatedBPindices_, 
+	  	rbnumToIndex[(size_t)Index.y[]] );
+	  append_dynUIarray( deactivatedBPindices_, (size_t)Index.x[] );
+	  append_dynUIarray( deactivatedBPindices_, rbnumToIndex[pnum] );
 	  append_dynUIarray( deactivatedBPindices_, i );	  	  	
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.x[]) );
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.y[]) );
@@ -665,7 +666,7 @@ void fill_DLM_Index( const RigidBodyBoundary dlm_bd, vector Index,
     else  
       printf( "On thread %d, point dlmfd %d of RB %lu at (%f, %f, %f) is in a"
 	" cell that has not the maximum level of refinement %d, it "
-	"is on level %d \n", pid(), i, kk, dlm_bd.bp[i].x, dlm_bd.bp[i].y, 
+	"is on level %d \n", pid(), i, pnum, dlm_bd.bp[i].x, dlm_bd.bp[i].y, 
         # if dimension == 3 
             dlm_bd.bp[i].z, 
         # endif	
@@ -741,7 +742,8 @@ bool is_in_rigidbody( RigidBody const* p, double x, double y, double z )
 
 /** Tags the grid along rigid body boundaries two cell layers into the fluid */
 //----------------------------------------------------------------------------
-void fill_FlagMesh( scalar Flag, vector const Index, RigidBody const* allrbs )
+void fill_FlagMesh( scalar Flag, vector const Index, RigidBody const* allrbs,
+	const size_t nrb, size_t const* rbnumToIndex )
 //----------------------------------------------------------------------------
 {
   foreach() Flag[] = 0; 
@@ -764,7 +766,8 @@ void fill_FlagMesh( scalar Flag, vector const Index, RigidBody const* allrbs )
         if ( !goflag ) 
           if ( is_leaf(cell) )
 	    if ( (int)Index.x[] > -1 )
-	      if ( !is_in_rigidbody( &(allrbs[(int)Index.y[]]), xc, yc, zc ) ) 
+	      if ( !is_in_rigidbody( &(allrbs[rbnumToIndex[(size_t)Index.y[]]]),
+	      	 xc, yc, zc ) ) 
 	        goflag = true;
     }
 
@@ -849,7 +852,8 @@ double reversed_weight( RigidBody* pp, const coord weightcellpos,
 domain boundary or to another rigid body */
 //----------------------------------------------------------------------------
 void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb, 
-	vector Index, dynUIarray* deactivatedBPindices_,
+	size_t const* rbnumToIndex, vector Index, 
+	dynUIarray* deactivatedBPindices_,
 	dynPDBarray* deactivatedIndexFieldValues_,
 	bool* at_least_one_deactivated_ ) 
 //----------------------------------------------------------------------------
@@ -857,7 +861,7 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
   bool domain_has_rigid_walls = !Period.x || !Period.y || !Period.z;
   double critical_distance = 2. * L0 / (double)(1 << MAXLEVEL) ;
   bool deactivate = false;
-  size_t RBid0 = 0, RBid1 = 0, PTid0 = 0, PTid1 = 0;
+  size_t RBid0 = 0, RBid1 = 0, PTid0 = 0, PTid1 = 0, indexp = 0, indexbp;
   double x0, y0, z0;  
 
   // Distance to rigid walls
@@ -866,48 +870,50 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
     {      
       if ( (int)Index.x[] > -1 )
       {
-        deactivate = false;
+        indexp = rbnumToIndex[(size_t)Index.y[]];
+	indexbp = (size_t)Index.x[];
+	deactivate = false;
 	if ( !Period.x )
-          if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].x 
+          if ( allrbs[indexp].s.bp[indexbp].x 
 	  		> L0 - critical_distance + X0 
-		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].x  
+		|| allrbs[indexp].s.bp[indexbp].x  
 	  		< critical_distance + X0 )
 	    deactivate = true;
 	    	    	    
         if ( !Period.y )
-          if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].y 
+          if ( allrbs[indexp].s.bp[indexbp].y 
 	  		> L0 - critical_distance + Y0 
-		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].y 
+		|| allrbs[indexp].s.bp[indexbp].y 
 			< critical_distance + Y0 )
 	    deactivate = true;
 
 #       if dimension == 3
           if ( !Period.z )
-            if ( allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].z 
+            if ( allrbs[indexp].s.bp[indexbp].z 
 	    		> L0 - critical_distance + Z0 
-		|| allrbs[(size_t)Index.y[]].s.bp[(size_t)Index.x[]].z 
+		|| allrbs[indexp].s.bp[indexbp].z 
 			< critical_distance + Z0 )
 	      deactivate = true;
 #       endif 
 
         if ( deactivate )
 	{
-    	  append_dynUIarray( deactivatedBPindices_, (size_t)Index.y[] );
-	  append_dynUIarray( deactivatedBPindices_, (size_t)Index.x[] );
+    	  append_dynUIarray( deactivatedBPindices_, indexp );
+	  append_dynUIarray( deactivatedBPindices_, indexbp );
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.x[]) );
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.y[]) );
 	  *at_least_one_deactivated_ = true;
 	} 
       }     
     }
- 
+
   // Proximity of rigid bodies
   if ( nrb > 1 )
   {
     foreach_level(MAXLEVEL,serial)
       if ( (int)Index.x[] > -1 )
       {
-	RBid0 = (size_t)Index.y[];
+	RBid0 = rbnumToIndex[(size_t)Index.y[]];
 	PTid0 = (size_t)Index.x[];
         x0 = allrbs[RBid0].s.bp[PTid0].x; 
 	y0 = allrbs[RBid0].s.bp[PTid0].y; 
@@ -920,7 +926,7 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
           if ( is_leaf(cell) )
 	    if ( (int)Index.x[] > - 1 )
 	    {
-	      RBid1 = (size_t)Index.y[];
+	      RBid1 = rbnumToIndex[(size_t)Index.y[]];
 	      if ( RBid1 != RBid0 )
 	      {
 		PTid1 = (size_t)Index.x[];
@@ -946,8 +952,8 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
 	          
         if ( deactivate ) 
 	{
-          append_dynUIarray( deactivatedBPindices_, (size_t)Index.y[] );
-	  append_dynUIarray( deactivatedBPindices_, (size_t)Index.x[] );
+          append_dynUIarray( deactivatedBPindices_, RBid0 );
+	  append_dynUIarray( deactivatedBPindices_, PTid0 );
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.x[]) );
 	  append_dynPDBarray( deactivatedIndexFieldValues_, &(Index.y[]) );
           *at_least_one_deactivated_ = true;
@@ -961,7 +967,7 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
       	1, MPI_INT, MPI_SUM, MPI_COMM_WORLD ); 
       if ( global > 0 ) *at_least_one_deactivated_ = true;
 #   endif
-  
+   
   if ( *at_least_one_deactivated_ )
   {
     size_t total_size = 0;
@@ -1006,7 +1012,7 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
     for (size_t i=0;i<total_size;i+=2)
       allrbs[alldeactivatedBPindices[i]].s.deactivated[
       	alldeactivatedBPindices[i+1]] = true;
-
+ 
 #   if  _MPI
       free( deactivated_count );
       free( deactivated_displace );
@@ -1027,24 +1033,20 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
 /** Tag cells that belong to a 3^dim stencil associated to a Lagrange multiplier
 point of the rigid body boundary. */
 //----------------------------------------------------------------------------
-void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag, 
-	const vector Index, const int cacheflag ) 
+void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, 
+	size_t const* rbnumToIndex,scalar Flag, const vector Index, 
+	const int cacheflag ) 
 //----------------------------------------------------------------------------
 {
   coord rel = {0., 0., 0.};
   coord relnl = {0., 0., 0.};
-  int NCX, CX, weight_id, k, nrbID = 0;
-  int rbID[20], pnumToIndex[nrb], pnum, bpnum; 
+  int NCX, CX, weight_id, pindex, nrbID = 0;
+  int rbID[20], bpnum; 
   size_t goflag = 0;
   coord lambdacellpos = {0., 0., 0.};
   coord lambdapos = {0., 0., 0.};
-  coord localcellpos = {0., 0., 0.};
- 
+  coord localcellpos = {0., 0., 0.}; 
   GeomParameter const* gcp = NULL;
-  
-  // Relationship between rigid body number and their position in the 
-  // vector of rigid bodies
-  for (int m=0;m<nrb;++m) pnumToIndex[allrbs[m].pnum] = m;
 
   foreach_level(MAXLEVEL,serial) 
   {      
@@ -1063,16 +1065,15 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag,
       {
         goflag = 0;
 	bpnum = (int)Index.x[];
-	pnum = (int)Index.y[];
-	k = pnumToIndex[pnum];  
-	gcp = &(allrbs[k].g); 	
+	pindex = rbnumToIndex[(int)Index.y[]];  
+	gcp = &(allrbs[pindex].g); 	
 	lambdacellpos.x = x; 
 	lambdacellpos.y = y; 
-	lambdapos.x = allrbs[k].s.bp[bpnum].x;
-	lambdapos.y = allrbs[k].s.bp[bpnum].y;	
+	lambdapos.x = allrbs[pindex].s.bp[bpnum].x;
+	lambdapos.y = allrbs[pindex].s.bp[bpnum].y;	
 #       if dimension == 3
 	  lambdacellpos.z = z;
-	  lambdapos.z = allrbs[k].s.bp[bpnum].z;
+	  lambdapos.z = allrbs[pindex].s.bp[bpnum].z;
 #       endif
 
         /* Compute relative vector from the cell (containning the boundary) 
@@ -1100,7 +1101,7 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag,
 
         /* Assign quadrant number NCX given by the direction of the normal 
 	over the geometric boundary of the rigid body */ 
-        assign_dial_fd_boundary( &allrbs[k], lambdapos, gcp, Delta, &NCX );
+        assign_dial_fd_boundary( &allrbs[pindex], lambdapos, gcp, Delta, &NCX );
 
         /* Compute relative vector from the cell to the cell that contains 
 	the Lagrange multiplier */
@@ -1114,8 +1115,8 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, scalar Flag,
 	{
 	  bool already_inserted = false;
 	  for (int m=0;m<nrbID;++m)
-	    if ( rbID[m] == k ) already_inserted = true;
-	  if ( !already_inserted ) { rbID[nrbID] = k; ++nrbID; }  
+	    if ( rbID[m] == pindex ) already_inserted = true;
+	  if ( !already_inserted ) { rbID[nrbID] = pindex; ++nrbID; }  
 	}		
       } // end if (Index.x[] > -1)
     } // end foreach_neigboor loop
@@ -1246,7 +1247,8 @@ void create_boundary_points( RigidBody* p, vector* pPeriodicRefCenter,
 /** Initializes the rigid bodies and the scalar/vector fields needed to the 
 method */
 //----------------------------------------------------------------------------
-void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb, 
+void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
+	size_t const* rbnumToIndex, 
 	vector Index, scalar Flag, scalar FlagMesh, vector PeriodicRefCenter,
 	dynUIarray* deactivatedBPindices_,
 	dynPDBarray* deactivatedIndexFieldValues_,
@@ -1269,8 +1271,9 @@ void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
 
 #   if DLMFD_BOUNDARYPOINTS
       create_boundary_points( &(allrbs[k]), &PeriodicRefCenter, true );
-      fill_DLM_Index( (allrbs[k].s), Index, k, deactivatedBPindices_,
-      	deactivatedIndexFieldValues_, at_least_one_deactivated_ );
+      fill_DLM_Index( rbnumToIndex, (allrbs[k].s), Index, allrbs[k].pnum, 
+      	deactivatedBPindices_, deactivatedIndexFieldValues_, 
+	at_least_one_deactivated_ );
       c = &(allrbs[k].Boundary);
       initialize_and_allocate_Cache( c );
 #   endif     
@@ -1711,8 +1714,9 @@ void computeHydroForceTorque( RigidBody* allrbs, const size_t nrb, FILE** sl,
 
 /** Initialize/open all DLMFD file pointers */
 //----------------------------------------------------------------------------
-void init_file_pointers( const size_t nrb, FILE** p, const bool open_pdata,
-	FILE** d, FILE** UzawaCV, FILE** CVT, const size_t rflag ) 
+void init_file_pointers( RigidBody const* allrbs, const size_t nrb, FILE** p, 
+	const bool open_pdata, FILE** d, FILE** UzawaCV, FILE** CVT, 
+	const size_t rflag ) 
 //----------------------------------------------------------------------------
 {
   char name[80] = "";
@@ -1725,7 +1729,7 @@ void init_file_pointers( const size_t nrb, FILE** p, const bool open_pdata,
       // Particle data
       for (size_t k = 0; k < nrb; k++) 
       {
-        sprintf( suffix, "_%lu.dat", k );
+        sprintf( suffix, "_%lu.dat", allrbs[k].pnum );
 
         if ( open_pdata )
 	{
@@ -2171,12 +2175,14 @@ void read_t_restart( char* dirname, double* time, double* deltat, double* ppd )
 /** Allocate number of rigid body dependent arrays */
 //----------------------------------------------------------------------------
 void allocate_np_dep_arrays( const size_t nrb, const size_t npart,
-	const size_t nrbdata_, RigidBody** allrb_, double*** DLMFDtoGS_vel_, 
+	const size_t nrbdata_, RigidBody** allrb_, size_t** RBnumToIndex_,
+	double*** DLMFDtoGS_vel_, 
 	double** vpartbuf_, FILE*** pdata_, const bool openpdata_, 
 	FILE*** fdata_ )
 //----------------------------------------------------------------------------
 {
   *allrb_ = (RigidBody*) calloc( nrb, sizeof(RigidBody) );
+  *RBnumToIndex_ = (size_t*) calloc( nrb + 1, sizeof(size_t) );
   if ( npart )
   {
     *DLMFDtoGS_vel_ = (double**) calloc( npart, sizeof(double*) );
@@ -2196,11 +2202,12 @@ void allocate_np_dep_arrays( const size_t nrb, const size_t npart,
 /** Free number of rigid body dependent arrays */
 //----------------------------------------------------------------------------
 void free_np_dep_arrays( const size_t npart, RigidBody* allrb_, 
-	double** DLMFDtoGS_vel_, double* vpartbuf_, FILE** pdata_, 
-	const bool pdata_is_open, FILE** fdata_ )
+	size_t* RBnumToIndex_, double** DLMFDtoGS_vel_, double* vpartbuf_, 
+	FILE** pdata_, const bool pdata_is_open, FILE** fdata_ )
 //----------------------------------------------------------------------------
 {
   free( allrb_ );
+  free( RBnumToIndex_ );
   if ( npart )
   {
     for (size_t k=0;k<npart;++k) free( DLMFDtoGS_vel_[k] );

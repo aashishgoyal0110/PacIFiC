@@ -83,6 +83,7 @@ vector DLM_tu[];
 /** Number of rigid body dependent arrays */
 RigidBody* allRigidBodies = NULL;
 RigidBody* ReferenceRigidBodies = NULL;
+size_t* RBnumToIndex;
 double** DLMFDtoGS_vel = NULL;
 double* vpartbuf = NULL;
 FILE** pdata = NULL;
@@ -133,6 +134,13 @@ void DLMFD_construction()
 # endif
 
   bool at_least_one_deactivated = false;
+  
+  // Relationship between rigid body number and their position in the 
+  // vector of rigid bodies
+  // Note that rigid bodies are numbered from 1 and consequently the array
+  // has a length of nbRigidBodies + 1
+  for (size_t m=0;m<nbRigidBodies;++m) 
+    RBnumToIndex[allRigidBodies[m].pnum] = m;
 
   // Allocate and initialize the array of deactivated boundary point indices
   initialize_and_allocate_dynUIarray( &deactivatedBPindices, DYNARRAYBLOCK );
@@ -141,17 +149,19 @@ void DLMFD_construction()
   // be reset to -1
   initialize_and_allocate_dynPDBarray( &deactivatedIndexFieldValues, 
     	DYNARRAYBLOCK );    
-
+  
   // Allocate and initialize rigid bodies
   // Initialize the fields DLM_Index, DLM_Flag, DLM_FlagMesh and 
   // DLM_PeriodicRefCenter, determine rigid body boundary points and link them
   // to the grid via DLM_Index
-  allocate_and_init_rigidbodies( allRigidBodies, nbRigidBodies, DLM_Index, 
-  	DLM_Flag, DLM_FlagMesh, DLM_PeriodicRefCenter, &deactivatedBPindices,
-	&deactivatedIndexFieldValues, &at_least_one_deactivated );
-
+  allocate_and_init_rigidbodies( allRigidBodies, nbRigidBodies, RBnumToIndex,
+  	DLM_Index, DLM_Flag, DLM_FlagMesh, DLM_PeriodicRefCenter, 
+	&deactivatedBPindices, &deactivatedIndexFieldValues, 
+	&at_least_one_deactivated );
+ 
   // Tag the grid along rigid body boundaries two cell layers into the fluid
-  fill_FlagMesh( DLM_FlagMesh, DLM_Index, allRigidBodies );	
+  fill_FlagMesh( DLM_FlagMesh, DLM_Index, allRigidBodies, nbRigidBodies,
+  	RBnumToIndex );	
 
   // Deactivate boundary points that are too close either to a rigid wall
   // domain boundary or to another rigid body
@@ -159,10 +169,10 @@ void DLMFD_construction()
   // points, i.e. set DLM_Flag to 1
 # if DLMFD_BOUNDARYPOINTS         
     deactivate_critical_boundary_points( allRigidBodies, nbRigidBodies, 
-    	DLM_Index, &deactivatedBPindices, &deactivatedIndexFieldValues,
-	&at_least_one_deactivated );
-    reverse_fill_DLM_Flag( allRigidBodies, nbRigidBodies, DLM_Flag, 
-    	DLM_Index, 1 );	
+    	RBnumToIndex, DLM_Index, &deactivatedBPindices, 
+	&deactivatedIndexFieldValues, &at_least_one_deactivated );	
+    reverse_fill_DLM_Flag( allRigidBodies, nbRigidBodies, RBnumToIndex,
+    	DLM_Flag, DLM_Index, 1 );	
 # endif	
 
   // Create fictitious-domain cache for the interior domain
@@ -531,7 +541,7 @@ void DLMFD_Uzawa_velocity( const int i )
     {
       foreach_cache((*Interior[k])) 
       {
-        if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == k ) 
+        if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == allRigidBodies[k].pnum ) 
         {
 	  foreach_dimension() 
 	    DLM_qu.x[] -= DLM_lambda.x[];
@@ -942,7 +952,7 @@ void DLMFD_Uzawa_velocity( const int i )
     {        
       foreach_cache((*Interior[k])) 
       {      
-        if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == k ) 
+        if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == allRigidBodies[k].pnum ) 
         {
 	  foreach_dimension() 
 	    DLM_r.x[] = - u.x[];
@@ -1215,7 +1225,7 @@ void DLMFD_Uzawa_velocity( const int i )
       {
         foreach_cache((*Interior[k])) 
         {
-          if ( DLM_Flag[]  < 1 && (int)DLM_Index.y[] == k ) 
+          if ( DLM_Flag[]  < 1 && (int)DLM_Index.y[] == allRigidBodies[k].pnum ) 
           {
 	    foreach_dimension() 
 	      DLM_qu.x[] = DLM_w.x[];
@@ -1549,7 +1559,7 @@ void DLMFD_Uzawa_velocity( const int i )
       {
         foreach_cache((*Interior[k])) 
         {
-	  if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == k ) 
+	  if ( DLM_Flag[] < 1 && (int)DLM_Index.y[] == allRigidBodies[k].pnum ) 
 	  {
 	    foreach_dimension() 
 	      DLM_v.x[] = DLM_tu.x[];
@@ -1835,7 +1845,7 @@ void DLMFD_Uzawa_velocity( const int i )
           {
 	    indexbp = (int)DLM_Index.x[];
 	    if ( indexbp > -1 && level == depth() && 
-		is_leaf(cell) && (int)DLM_Index.y[] == k ) 
+		is_leaf(cell) && (int)DLM_Index.y[] == pp->pnum ) 
 	    {
 	      lambdacellpos.x = x;
 	      lambdacellpos.y = y;
@@ -1862,7 +1872,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #     if DLMFD_INTERIORPOINTS
         foreach_cache ((*Interior[k])) 
         {
-          if ( DLM_Flag[]  < 1 && (int)DLM_Index.y[] == k )
+          if ( DLM_Flag[]  < 1 && (int)DLM_Index.y[] == allRigidBodies[k].pnum )
 	    foreach_dimension() 
 	      DLM_explicit.x[] = DLM_lambda.x[];
         }

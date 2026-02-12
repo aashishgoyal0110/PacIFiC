@@ -918,7 +918,7 @@ void GrainsCoupledWithFluid::numberOfReferenceRBToFluid( size_t* nrefRB ) const
   if ( m_processorIsActive )
   {
     list<Obstacle*> obstaclesToFluid = m_allcomponents.getObstaclesToFluid();
-    *nrefRB = m_allcomponents.getActiveParticles()->size() + 
+    *nrefRB = m_allcomponents.getReferenceParticles()->size() + 
     	obstaclesToFluid.size();
   }  
 }
@@ -964,7 +964,8 @@ void GrainsCoupledWithFluid::GrainsToFluid( istringstream &is )
     particles_features << nparticles + obstaclesToFluid.size() << endl;
 
     // Particle features
-    // Note that componentIDinFluid = particleID - 1
+    // Note that componentIDinFluid = particleID
+    componentIDinFluid = 1;
     for (size_t i=0;i<nparticles;++i,++componentIDinFluid)
     {
       if ( m_orderedParticles[i]->getActivity() == COMPUTE )      
@@ -978,7 +979,7 @@ void GrainsCoupledWithFluid::GrainsToFluid( istringstream &is )
         radius = m_orderedParticles[i]->getCircumscribedRadius();
         ncorners = m_orderedParticles[i]->getNbCorners();
         particleID = m_orderedParticles[i]->getID();
-	if ( componentIDinFluid != particleID - 1 )
+	if ( componentIDinFluid != particleID )
 	  cout << "Warning: numbering problem in "
 	  	<< "GrainsCoupledWithFluid::GrainsToFluid" << endl;
 	nclonesper = particlesPeriodicClones->count( particleID ); 
@@ -1178,7 +1179,8 @@ void GrainsCoupledWithFluid::GrainsToFluid2( istringstream &is )
     particles_features << nparticles + obstaclesToFluid.size() << endl;
 
     // Particle features
-    // Note that componentIDinFluid = particleID - 1
+    // Note that componentIDinFluid = particleID
+    componentIDinFluid = 1;
     for (size_t i=0;i<nparticles;++i,++componentIDinFluid)
     {
       if ( m_orderedParticles[i]->getActivity() == COMPUTE )      
@@ -1188,7 +1190,7 @@ void GrainsCoupledWithFluid::GrainsToFluid2( istringstream &is )
         centre = m_orderedParticles[i]->getPosition();
         geomType = m_orderedParticles[i]->getGeometricType();
         particleID = m_orderedParticles[i]->getID();
-	if ( componentIDinFluid != particleID - 1 )
+	if ( componentIDinFluid != particleID )
 	  cout << "Warning: numbering problem in "
 	  	<< "GrainsCoupledWithFluid::GrainsToFluid" << endl;
 	nclonesper = particlesPeriodicClones->count( particleID ); 

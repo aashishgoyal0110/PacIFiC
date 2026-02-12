@@ -73,7 +73,7 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
 	gx = 0., gy = 0., gz = 0., radiusp = 0.,
 	MRxx = 0., MRxy = 0., MRxz = 0., MRyx = 0., MRyy = 0., MRyz = 0.,
 	MRzx = 0., MRzy = 0., MRzz = 0.;
-  int ncornersp = 0;
+  int ncornersp = 0, pnum = 0;
   char RBTag[3] = "";
   char particleDefaultTag[] = "P";
   char periodicParticleDefaultTag[] = "PP"; 
@@ -91,9 +91,10 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
     gg->cgp = NULL;    
     allrbs[k].toygsp = NULL;
     
-    // Read the rigid body number but assign k
+    // Read the rigid body number
     token = strtok( NULL, " " );
-    allrbs[k].pnum = k;
+    sscanf( token, "%u", &pnum );     
+    allrbs[k].pnum = pnum;
 
     // Read the rigid body's number of corners or code
     token = strtok( NULL, " " );
@@ -533,5 +534,32 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
     }                               
   }
   
+  return ( pstr );         
+}
+
+
+
+
+/** Create the array of reference rigid bodies */
+//----------------------------------------------------------------------------
+char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
+	RigidBody* allrefrbs, const size_t nrefrb_ )
+//----------------------------------------------------------------------------
+{
+# if _MPI
+    // Broadcast the size of the array of characters
+    int sstr = pstrsize;
+    MPI_Bcast( &sstr, 1, MPI_INT, 0, MPI_COMM_WORLD );
+    
+    // Allocate the array of characters of other processes than 0
+    if ( pid() != 0 )
+      pstr = (char*) malloc( sstr * sizeof(char) ); 
+    
+    // Broadcast the array of characters
+    MPI_Bcast( pstr, sstr, MPI_CHAR, 0, MPI_COMM_WORLD );
+# endif
+
+  if ( pid() == 0 ) printf("%s\n", pstr );
+
   return ( pstr );         
 }

@@ -353,8 +353,9 @@ event init (i = 0)
 
 
   // Initialize/open all DLMFD file pointers
-  init_file_pointers( nbRigidBodies, pdata, !RIGIDBODIES_AS_FIXED_OBSTACLES, 
-  	fdata, &converge, &cellvstime, restarted_simu );      
+  init_file_pointers( allRigidBodies, nbRigidBodies, pdata, 
+  	!RIGIDBODIES_AS_FIXED_OBSTACLES, fdata, &converge, &cellvstime, 
+	restarted_simu );      
 
 
   /* Construction of rigid bodies and their DLMFD features */
@@ -806,9 +807,10 @@ event cleanup (t = end)
   // once_timestep_is_determined)
   // Since at the very end, there is no next time step, dynamic features 
   // of rigid bodies are not freed by start_timestep and hence are freed here
-  free_rigidbodies( allRigidBodies, nbRigidBodies, true ); 
-  free_np_dep_arrays( nbParticles, allRigidBodies, DLMFDtoGS_vel, vpartbuf, 
-  	pdata, !RIGIDBODIES_AS_FIXED_OBSTACLES, fdata );
+  free_rigidbodies( allRigidBodies, nbRigidBodies, true );
+  free_rigidbodies( ReferenceRigidBodies, nbReferenceRigidBodies, true );   
+  free_np_dep_arrays( nbParticles, allRigidBodies, RBnumToIndex, DLMFDtoGS_vel,
+  	vpartbuf, pdata, !RIGIDBODIES_AS_FIXED_OBSTACLES, fdata );
 }
 
 

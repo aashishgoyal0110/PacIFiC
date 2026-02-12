@@ -50,14 +50,14 @@ event GranularSolver_init (t < -1.)
 
     // Set initial time
     SetInitialTime( trestart );
-
-    // Get the number of rigid bodies sent by Grains to Basilisk
+    
+    // Get the number of reference rigid bodies sent by Grains to Basilisk
     // Note: this number must be constant over the simulation
-    NumberOfRigidBodiesInBasilisk( &nbParticles, &NbObstacles );
+    NumberOfReferenceRigidBodiesInBasilisk( &nbReferenceRigidBodies );      
     
     // Transfer the data from Grains to an array of characters
-    pstr = GrainsToBasilisk( &pstrsize ); 
-
+    pstr = GrainsToBasiliskReference( &pstrsize );
+         
     // Check that Paraview writer is activated
     checkParaviewPostProcessing_Grains( GRAINS_RESULT_DIR );
     
@@ -73,7 +73,30 @@ event GranularSolver_init (t < -1.)
     }
     else SetInitialCycleNumber( init_cycle_number );   
   }
- 
+  
+# if _MPI
+    // Broadcast the number of rigid bodies
+    MPI_Bcast( &nbReferenceRigidBodies, 1, MPI_UNSIGNED_LONG, 0, 
+    	MPI_COMM_WORLD );    
+# endif
+
+  // Create the array of reference rigid bodies
+  ReferenceRigidBodies = (RigidBody*) calloc( nbReferenceRigidBodies, 
+  	sizeof(RigidBody) );
+  pstr = CreateReferenceRBBasilisk( pstr, pstrsize, ReferenceRigidBodies,
+  	nbReferenceRigidBodies );
+  free( pstr );
+  
+  if ( pid() == 0 )
+  {
+    // Get the number of rigid bodies sent by Grains to Basilisk
+    // Note: this number must be constant over the simulation
+    NumberOfRigidBodiesInBasilisk( &nbParticles, &NbObstacles );
+    
+    // Transfer the data from Grains to an array of characters
+    pstr = GrainsToBasilisk( &pstrsize );       
+  }     
+   
 # if _MPI
     // Broadcast the number of rigid bodies
     MPI_Bcast( &nbParticles, 1, MPI_UNSIGNED_LONG, 0, MPI_COMM_WORLD );
@@ -88,8 +111,8 @@ event GranularSolver_init (t < -1.)
   
   // Allocate number of rigid bodies dependent arrays
   allocate_np_dep_arrays( nbRigidBodies, nbParticles, NRBDATA, &allRigidBodies, 
-  	&DLMFDtoGS_vel, &vpartbuf, &pdata, !RIGIDBODIES_AS_FIXED_OBSTACLES,
-	&fdata );
+  	&RBnumToIndex, &DLMFDtoGS_vel, &vpartbuf, &pdata, 
+	!RIGIDBODIES_AS_FIXED_OBSTACLES, &fdata );
 
   // Update all rigid body data 
   pstr = UpdateParticlesBasilisk( pstr, pstrsize, allRigidBodies, nbRigidBodies,
