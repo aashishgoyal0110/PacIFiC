@@ -353,6 +353,265 @@ void initialize_and_allocate_Cache( Cache* p )
 
 
 
+
+/** Inverts a 3 x 3 matrix and stores it in a double** */
+//----------------------------------------------------------------------------
+void inverse3by3matrix( const double Matrix[3][3], double** inversedMatrix ) 
+//----------------------------------------------------------------------------
+{
+  double block1 = Matrix[1][1] * Matrix[2][2] 
+  	- Matrix[1][2] * Matrix[2][1];
+  double block2 = Matrix[1][2] * Matrix[2][0] 
+  	- Matrix[1][0] * Matrix[2][2];
+  double block3 = Matrix[1][0] * Matrix[2][1] 
+  	- Matrix[1][1] * Matrix[2][0];
+
+  double determinant = Matrix[0][0] * block1 + Matrix[0][1] * block2 
+  	+ Matrix[0][2] * block3;
+
+  /* m[i][j], *(*(m + i) + j) */
+  
+  *(*(inversedMatrix + 0) + 0) = block1 / determinant;
+  *(*(inversedMatrix + 0) + 1) = ( Matrix[0][2] * Matrix[2][1] 
+  	- Matrix[0][1] * Matrix[2][2] ) / determinant;
+  *(*(inversedMatrix + 0) + 2) = ( Matrix[0][1] * Matrix[1][2] 
+  	- Matrix[0][2] * Matrix[1][1]) / determinant; 
+  *(*(inversedMatrix + 1) + 0) = block2 / determinant;  
+  *(*(inversedMatrix + 1) + 1) = ( Matrix[0][0] * Matrix[2][2] 
+  	- Matrix[0][2] * Matrix[2][0] ) / determinant;
+  *(*(inversedMatrix + 1) + 2) = ( Matrix[0][2] * Matrix[1][0] 
+  	- Matrix[0][0] * Matrix[1][2] ) / determinant;
+  *(*(inversedMatrix + 2) + 0) = block3 / determinant;
+  *(*(inversedMatrix + 2) + 1) = ( Matrix[0][1] * Matrix[2][0] 
+  	- Matrix[0][0] * Matrix[2][1]) / determinant;
+  *(*(inversedMatrix + 2) + 2) = ( Matrix[0][0] * Matrix[1][1] 
+  	- Matrix[0][1] * Matrix[1][0] ) / determinant ;
+}
+
+
+
+
+/** Inverts a 3 x 3 matrix and stores it in a double[][] */
+//----------------------------------------------------------------------------
+void inverse3by3matrix__( const double Matrix[3][3], 
+	double inversedMatrix[3][3] ) 
+//----------------------------------------------------------------------------
+{
+  double block1 = Matrix[1][1] * Matrix[2][2] 
+  	- Matrix[1][2] * Matrix[2][1];
+  double block2 = Matrix[1][2] * Matrix[2][0] 
+  	- Matrix[1][0] * Matrix[2][2];
+  double block3 = Matrix[1][0] * Matrix[2][1] 
+  	- Matrix[1][1] * Matrix[2][0];
+
+  double determinant = Matrix[0][0] * block1 + Matrix[0][1] * block2 
+  	+ Matrix[0][2] * block3;
+  
+  inversedMatrix[0][0] = block1 / determinant;
+  inversedMatrix[0][1] = ( Matrix[0][2] * Matrix[2][1] 
+  	- Matrix[0][1] * Matrix[2][2]) / determinant;
+  inversedMatrix[0][2] = ( Matrix[0][1] * Matrix[1][2] 
+  	- Matrix[0][2] * Matrix[1][1] ) / determinant; 
+  inversedMatrix[1][0] = block2 / determinant;
+  inversedMatrix[1][1] = ( Matrix[0][0] * Matrix[2][2] 
+  	- Matrix[0][2] * Matrix[2][0] ) / determinant;
+  inversedMatrix[1][2] = ( Matrix[0][2] * Matrix[1][0] 
+  	- Matrix[0][0] * Matrix[1][2] ) / determinant;
+  inversedMatrix[2][0] = block3 / determinant;
+  inversedMatrix[2][1] = ( Matrix[0][1] * Matrix[2][0] 
+  	- Matrix[0][0] * Matrix[2][1] ) / determinant;
+  inversedMatrix[2][2] = ( Matrix[0][0] * Matrix[1][1] 
+  	- Matrix[0][1] * Matrix[1][0]) / determinant ;
+}
+
+
+
+
+/** 3 x 3 matrix - vector dot product where the matrix is stored as a 
+double[][] and the vector as a coord */
+//----------------------------------------------------------------------------
+void matCoordDotProduct( const double Matrix[3][3], const coord v, coord* res ) 
+//----------------------------------------------------------------------------
+{
+  (*res).x = Matrix[0][0] * v.x + Matrix[0][1] * v.y + Matrix[0][2] * v.z;
+  (*res).y = Matrix[1][0] * v.x + Matrix[1][1] * v.y + Matrix[1][2] * v.z;
+  (*res).z = Matrix[2][0] * v.x + Matrix[2][1] * v.y + Matrix[2][2] * v.z;
+}
+
+
+
+
+/** 3 x 3 matrix - vector dot product where the matrix is stored as a 
+double[][] and the vector as a coord */
+//----------------------------------------------------------------------------
+void matVecDotProduct( const double Matrix[3][3], double const* v, double* res ) 
+//----------------------------------------------------------------------------
+{
+  res[0] = Matrix[0][0] * v[0] + Matrix[0][1] * v[1] + Matrix[0][2] * v[2];
+  res[1] = Matrix[1][0] * v[0] + Matrix[1][1] * v[1] + Matrix[1][2] * v[2];
+  res[2] = Matrix[2][0] * v[0] + Matrix[2][1] * v[1] + Matrix[2][2] * v[2];
+}
+
+
+
+
+/** 3 x 3 matrix - vector dot product where the matrix is stored as a 
+double[][] and the vector as a coord */
+//----------------------------------------------------------------------------
+void matTransposedCoordDotProduct( const double Matrix[3][3], const coord v, 
+	coord* res ) 
+//----------------------------------------------------------------------------
+{
+  (*res).x = Matrix[0][0] * v.x + Matrix[1][0] * v.y + Matrix[2][0] * v.z;
+  (*res).y = Matrix[0][1] * v.x + Matrix[1][1] * v.y + Matrix[2][1] * v.z;
+  (*res).z = Matrix[0][2] * v.x + Matrix[1][2] * v.y + Matrix[2][2] * v.z;
+}
+
+
+
+
+/** 3 x 3 matrix transposed - vector dot product where the matrix is stored as 
+a double[][] and the vector as a coord */
+//----------------------------------------------------------------------------
+void matTransposedVecDotProduct( const double Matrix[3][3], double const* v, 
+	double* res ) 
+//----------------------------------------------------------------------------
+{
+  res[0] = Matrix[0][0] * v[0] + Matrix[1][0] * v[1] + Matrix[2][0] * v[2];
+  res[1] = Matrix[0][1] * v[0] + Matrix[1][1] * v[1] + Matrix[2][1] * v[2];
+  res[2] = Matrix[0][2] * v[0] + Matrix[1][2] * v[1] + Matrix[2][2] * v[2];
+}
+
+
+
+
+/** 3 x 3 matrix - 3 x 3 matrix dot product where both matrices are stored as
+double[][] */
+//----------------------------------------------------------------------------
+void matMatDotProduct( const double A[3][3], const double B[3][3], 
+	double Res[3][3] ) 
+//----------------------------------------------------------------------------
+{
+  for (size_t i=0;i<3;++i)
+    for (size_t j=0;j<3;++j)
+    {
+      Res[i][j] = 0.;
+      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[k][j];
+    }    
+}
+
+
+
+
+/** 3 x 3 matrix - 3 x 3 matrix transposed dot product where both matrices are 
+stored as double[][] */
+//----------------------------------------------------------------------------
+void matMatTransposedDotProduct( const double A[3][3], const double B[3][3], 
+	double Res[3][3] ) 
+//----------------------------------------------------------------------------
+{
+  for (size_t i=0;i<3;++i)
+    for (size_t j=0;j<3;++j)
+    {
+      Res[i][j] = 0.;
+      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[j][k];
+    }    
+}
+
+
+
+
+/** Computes the inverse of the moment of inertia matrix of a rigid body */
+//----------------------------------------------------------------------------
+void compute_inv_inertia( RigidBody* p )
+//----------------------------------------------------------------------------
+{
+  /* The inertia tensor is */
+  /*  Ixx  Ixy  Ixz */
+  /*  Iyx  Iyy  Iyz */
+  /*  Izx  Izy  Izz */ 
+  /* with */
+  /* Ip[0] = Ixx */
+  /* Ip[1] = Iyy */
+  /* Ip[2] = Izz */
+  /* Ip[3] = Ixy */
+  /* Ip[4] = Ixz */
+  /* Ip[5] = Iyz */
+
+  // Transfer Ip to a 3x3 matrix
+  double Imat[3][3]; 
+  Imat[0][0] = p->Ip[0];
+  Imat[1][1] = p->Ip[1];
+  Imat[2][2] = p->Ip[2];
+
+  Imat[0][1] = p->Ip[3];
+  Imat[0][2] = p->Ip[4];
+  Imat[1][2] = p->Ip[5];
+    
+  Imat[1][0] = Imat[0][1]; 
+  Imat[2][0] = Imat[0][2];
+  Imat[2][1] = Imat[1][2];
+  
+  // Invert Imat and copy the result in p->Ip_inv
+  // Ip_inv is a 2D 3 by 3 array
+  inverse3by3matrix__( Imat, p->Ip_inv );  
+}
+
+
+
+
+/** Computes the inertia matrix and the inverse of the moment of inertia matrix
+ of a rigid body in the world frame of reference */
+//----------------------------------------------------------------------------
+void compute_inertia_inv_inertia( RigidBody* p, RigidBody const* rbref )
+//----------------------------------------------------------------------------
+{
+  /* The inertia tensor is */
+  /*  Ixx  Ixy  Ixz */
+  /*  Iyx  Iyy  Iyz */
+  /*  Izx  Izy  Izz */ 
+  /* with */
+  /* Ip[0] = Ixx */
+  /* Ip[1] = Iyy */
+  /* Ip[2] = Izz */
+  /* Ip[3] = Ixy */
+  /* Ip[4] = Ixz */
+  /* Ip[5] = Iyz */
+  
+  // Transfer I in the body frame of reference to a 3x3 matrix
+  double Ib[3][3]; 
+  Ib[0][0] = rbref->Ip[0];
+  Ib[1][1] = rbref->Ip[1];
+  Ib[2][2] = rbref->Ip[2];
+
+  Ib[0][1] = rbref->Ip[3];
+  Ib[0][2] = rbref->Ip[4];
+  Ib[1][2] = rbref->Ip[5];
+    
+  Ib[1][0] = Ib[0][1]; 
+  Ib[2][0] = Ib[0][2];
+  Ib[2][1] = Ib[1][2];
+  
+  // Compute I = RotMat * Ib * RotMat^t in the world frame of reference
+  double MIb[3][3];
+  matMatDotProduct( p->RotMat, Ib, MIb );
+  double MIbMt[3][3];  
+  matMatTransposedDotProduct( MIb, p->RotMat, MIbMt );
+  
+  // Transfer to p->I
+  p->Ip[0] = MIbMt[0][0];
+  p->Ip[1] = MIbMt[1][1];
+  p->Ip[2] = MIbMt[2][2];
+  p->Ip[3] = MIbMt[0][1];
+  p->Ip[4] = MIbMt[0][2];
+  p->Ip[5] = MIbMt[1][2];
+		   
+  // Invert MIbMt and copy the result in p->Ip_inv
+  // Ip_inv is a 2D 3 by 3 array
+  inverse3by3matrix__( MIbMt, p->Ip_inv );  
+}
+
+
  
 # include "CircularCylinder2D.h"
 # include "Sphere.h"
@@ -467,6 +726,7 @@ void print_rigidbody( RigidBody const* p, char const* poshift )
   {
     printf( "%sNumber = %lu\n", poshift, p->pnum ); 
     printf( "%sTag = %s\n", poshift, p->typetag ); 
+    printf( "%sGeometric type = %lu\n", poshift, p->geomType );     
     printf( "%sShape = ", poshift );
     switch ( p->shape )
     {
@@ -1253,8 +1513,67 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
 /** Creates DLM/FD boundary points of a given rigid body. Sets the
 PeriodicRefCenter field only if setPeriodicRefCenter is true */
 //----------------------------------------------------------------------------
-void create_boundary_points( RigidBody* p, const bool accountForPeriodicity,
-	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
+void create_boundary_points( RigidBody* p, RigidBody const* refrb,
+	vector* pPeriodicRefCenter, 
+	const bool setPeriodicRefCenter )
+//----------------------------------------------------------------------------
+{   
+  coord pos, rotp;
+  coord shift = {0., 0., 0.};
+  coord ori = {X0, Y0, Z0};
+  size_t m = refrb->s.m; 
+  
+  allocate_RigidBodyBoundary( &(p->s), m );
+  
+  for (size_t i=0;i<m;++i)
+  {
+    // Rotate point of the reference rigid body
+    matCoordDotProduct( p->RotMat, refrb->s.bp[i], &rotp );
+    
+    // Translate the rotated point   
+    foreach_dimension()
+      pos.x = p->g.center.x + rotp.x;
+      
+    /* Check if the point falls outside of the domain in case of periodicity */
+    foreach_dimension()
+    {
+      shift.x = 0.;      
+      if ( Period.x )
+      {
+	if ( pos.x > L0 + ori.x )
+	{  
+	  pos.x -= L0;
+	  shift.x = - L0;
+	}
+        else if ( pos.x < 0. + ori.x )
+	{
+	  pos.x += L0;
+	  shift.x = L0;
+	}
+      }
+    }
+
+    if ( setPeriodicRefCenter )
+    {
+      // Setting the periodic clone center vector field
+      foreach_point( pos.x, pos.y, pos.z )
+        foreach_dimension()
+	  pPeriodicRefCenter->x[] = p->g.center.x + shift.x;
+    }
+
+    foreach_dimension() 
+      p->s.bp[i].x = pos.x; 
+  }      
+}
+
+
+
+
+
+/** Creates DLM/FD boundary points of a given rigid body. Sets the
+PeriodicRefCenter field only if setPeriodicRefCenter is true */
+//----------------------------------------------------------------------------
+void create_referencerigidbody_boundary_geomfeatures( RigidBody* p )
 //----------------------------------------------------------------------------
 {  
   GeomParameter gci = p->g;
@@ -1266,78 +1585,74 @@ void create_boundary_points( RigidBody* p, const bool accountForPeriodicity,
     case SPHERE:
       compute_nboundary_Sphere( &gci, &m );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Sphere( &gci, &(p->s), m, accountForPeriodicity,
-      		pPeriodicRefCenter, setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Sphere( &gci, &(p->s), m );
       break;
 	  
     case CIRCULARCYLINDER2D:
       compute_nboundary_CircularCylinder2D( &gci, &m );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_CircularCylinder2D( &gci, &(p->s), m, 
-      		pPeriodicRefCenter, setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_CircularCylinder2D( &gci, 
+      	&(p->s), m );
       break;
 	  
     case CUBE:
       compute_nboundary_Cube( &gci, &m, &lN );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Cube( &gci, &(p->s), m, lN, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Cube( &gci, &(p->s), m, lN );
       break;
 	
     case TETRAHEDRON:
       compute_nboundary_Tetrahedron( &gci, &m, &lN );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Tetrahedron( &gci, &(p->s), m, lN, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Tetrahedron( &gci, &(p->s), m, 
+      	lN );
       break;
 	
     case OCTAHEDRON:
       compute_nboundary_Octahedron( &gci, &m, &lN );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Octahedron( &gci, &(p->s), m, lN, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Octahedron( &gci, &(p->s), m, 
+      	lN );      
       break;
 
     case ICOSAHEDRON:
       compute_nboundary_Icosahedron( &gci, &m, &lN );
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Icosahedron( &gci, &(p->s), m, lN, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Icosahedron( &gci, &(p->s), m, 
+      	lN );
       break;	
 
     case DODECAHEDRON:     
       compute_nboundary_Dodecahedron( &gci, &m, &lN );	
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Dodecahedron( &gci, &(p->s), m, lN, pPeriodicRefCenter,
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Dodecahedron( &gci, &(p->s), m, 
+      	lN );      
       break;
       
     case BOX:     
       compute_nboundary_Box( &gci, &m );	
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Box( &gci, &(p->s), m, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Box( &gci, &(p->s), m );
       break;
       
     case CIRCULARCYLINDER3D:     
       compute_nboundary_CircularCylinder3D( &gci, &m );	
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_CircularCylinder3D( &gci, &(p->s), m, 
-      		pPeriodicRefCenter, setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_CircularCylinder3D( &gci, 
+      	&(p->s), m );
       break; 
 
     case CONE:     
       compute_nboundary_Cone( &gci, &m );	
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_Cone( &gci, &(p->s), m, pPeriodicRefCenter, 
-      	setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_Cone( &gci, &(p->s), m );
       break;
       
     case TRUNCATEDCONE:     
       compute_nboundary_TruncatedCone( &gci, &m );	
       allocate_RigidBodyBoundary( &(p->s), m );
-      create_FD_Boundary_TruncatedCone( &gci, &(p->s), m, 
-      		pPeriodicRefCenter, setPeriodicRefCenter );
+      create_referenceRB_boundary_geomfeatures_TruncatedCone( &gci, 
+      	&(p->s), m );
       break;                 	
 	  
     default:
@@ -1346,13 +1661,12 @@ void create_boundary_points( RigidBody* p, const bool accountForPeriodicity,
 }
 
 
-
  
 /** Initializes the rigid bodies and the scalar/vector fields needed to the 
 method */
 //----------------------------------------------------------------------------
 void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
-	size_t const* rbnumToIndex, 
+	size_t const* rbnumToIndex, RigidBody const* allrefrbs,
 	vector Index, scalar Flag, scalar FlagMesh, vector PeriodicRefCenter,
 	dynUIarray* deactivatedBPindices_,
 	dynPDBarray* deactivatedIndexFieldValues_,
@@ -1374,7 +1688,8 @@ void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
     Cache* c = NULL;
 
 #   if DLMFD_BOUNDARYPOINTS
-      create_boundary_points( &(allrbs[k]), true, &PeriodicRefCenter, true );
+      create_boundary_points( &(allrbs[k]), &(allrefrbs[allrbs[k].geomType]), 
+      		&PeriodicRefCenter, true );
       fill_DLM_Index( rbnumToIndex, (allrbs[k].s), Index, allrbs[k].pnum, 
       	deactivatedBPindices_, deactivatedIndexFieldValues_, 
 	at_least_one_deactivated_ );
@@ -1387,22 +1702,9 @@ void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
 #   endif
   }
 
-  synchronize((scalar*) {Index});
-}
-
-
-
- 
-/** Creates boundary points of all rigid bodies but does not set the 
-PeriodicRefCenter field */
-//----------------------------------------------------------------------------
-void create_rigidbodies_boundary_points( RigidBody* allrbs, const size_t nrb )
-//----------------------------------------------------------------------------
-{  
-# if DLMFD_BOUNDARYPOINTS
-    for (size_t k = 0; k < nrb; k++) 
-      create_boundary_points( &(allrbs[k]), true, NULL, false );    
-# endif
+  synchronize((scalar*){PeriodicRefCenter.x,
+  	PeriodicRefCenter.y, PeriodicRefCenter.z});  
+  synchronize((scalar*){Index});
 }
 
 
@@ -1416,7 +1718,7 @@ void create_referencerigidbodies_boundary_geomfeatures( RigidBody* allrefrbs,
 {  
 # if DLMFD_BOUNDARYPOINTS
     for (size_t k = 0; k < nrefrb; k++) 
-      create_boundary_points( &(allrefrbs[k]), false, NULL, false );    
+      create_referencerigidbody_boundary_geomfeatures( &(allrefrbs[k]) );    
 # endif
 }
 
@@ -2064,166 +2366,6 @@ void pressure_at_point( scalar pres, FILE* ppf, const coord hv,
     fprintf( ppf, "%20.18f\t %20.18f\n", t, plaw );
     fflush( ppf );
   }
-}
-
-
-
-/** Inverts a 3 x 3 matrix and stores it in a double** */
-//----------------------------------------------------------------------------
-void inverse3by3matrix( double Matrix[3][3], double** inversedMatrix ) 
-//----------------------------------------------------------------------------
-{
-  double block1 = Matrix[1][1] * Matrix[2][2] 
-  	- Matrix[1][2] * Matrix[2][1];
-  double block2 = Matrix[1][2] * Matrix[2][0] 
-  	- Matrix[1][0] * Matrix[2][2];
-  double block3 = Matrix[1][0] * Matrix[2][1] 
-  	- Matrix[1][1] * Matrix[2][0];
-
-  double determinant = Matrix[0][0] * block1 + Matrix[0][1] * block2 
-  	+ Matrix[0][2] * block3;
-
-  /* m[i][j], *(*(m + i) + j) */
-  
-  *(*(inversedMatrix + 0) + 0) = block1 / determinant;
-  *(*(inversedMatrix + 0) + 1) = ( Matrix[0][2] * Matrix[2][1] 
-  	- Matrix[0][1] * Matrix[2][2] ) / determinant;
-  *(*(inversedMatrix + 0) + 2) = ( Matrix[0][1] * Matrix[1][2] 
-  	- Matrix[0][2] * Matrix[1][1]) / determinant; 
-  *(*(inversedMatrix + 1) + 0) = block2 / determinant;  
-  *(*(inversedMatrix + 1) + 1) = ( Matrix[0][0] * Matrix[2][2] 
-  	- Matrix[0][2] * Matrix[2][0] ) / determinant;
-  *(*(inversedMatrix + 1) + 2) = ( Matrix[0][2] * Matrix[1][0] 
-  	- Matrix[0][0] * Matrix[1][2] ) / determinant;
-  *(*(inversedMatrix + 2) + 0) = block3 / determinant;
-  *(*(inversedMatrix + 2) + 1) = ( Matrix[0][1] * Matrix[2][0] 
-  	- Matrix[0][0] * Matrix[2][1]) / determinant;
-  *(*(inversedMatrix + 2) + 2) = ( Matrix[0][0] * Matrix[1][1] 
-  	- Matrix[0][1] * Matrix[1][0] ) / determinant ;
-}
-
-
-
-
-/** Inverts a 3 x 3 matrix and stores it in a double[][] */
-//----------------------------------------------------------------------------
-void inverse3by3matrix__( double Matrix[3][3], double inversedMatrix[3][3] ) 
-//----------------------------------------------------------------------------
-{
-  double block1 = Matrix[1][1] * Matrix[2][2] 
-  	- Matrix[1][2] * Matrix[2][1];
-  double block2 = Matrix[1][2] * Matrix[2][0] 
-  	- Matrix[1][0] * Matrix[2][2];
-  double block3 = Matrix[1][0] * Matrix[2][1] 
-  	- Matrix[1][1] * Matrix[2][0];
-
-  double determinant = Matrix[0][0] * block1 + Matrix[0][1] * block2 
-  	+ Matrix[0][2] * block3;
-  
-  inversedMatrix[0][0] = block1 / determinant;
-  inversedMatrix[0][1] = ( Matrix[0][2] * Matrix[2][1] 
-  	- Matrix[0][1] * Matrix[2][2]) / determinant;
-  inversedMatrix[0][2] = ( Matrix[0][1] * Matrix[1][2] 
-  	- Matrix[0][2] * Matrix[1][1] ) / determinant; 
-  inversedMatrix[1][0] = block2 / determinant;
-  inversedMatrix[1][1] = ( Matrix[0][0] * Matrix[2][2] 
-  	- Matrix[0][2] * Matrix[2][0] ) / determinant;
-  inversedMatrix[1][2] = ( Matrix[0][2] * Matrix[1][0] 
-  	- Matrix[0][0] * Matrix[1][2] ) / determinant;
-  inversedMatrix[2][0] = block3 / determinant;
-  inversedMatrix[2][1] = ( Matrix[0][1] * Matrix[2][0] 
-  	- Matrix[0][0] * Matrix[2][1] ) / determinant;
-  inversedMatrix[2][2] = ( Matrix[0][0] * Matrix[1][1] 
-  	- Matrix[0][1] * Matrix[1][0]) / determinant ;
-}
-
-
-
-
-/** 3 x 3 matrix - vector dot product where the matrix is stored as a 
-double[][] */
-//----------------------------------------------------------------------------
-void matCoordDotProduct( double Matrix[3][3], const coord v, coord* res ) 
-//----------------------------------------------------------------------------
-{
-  (*res).x = Matrix[0][0] * v.x + Matrix[0][1] * v.y + Matrix[0][2] * v.z;
-  (*res).y = Matrix[1][0] * v.x + Matrix[1][1] * v.y + Matrix[1][2] * v.z;
-  (*res).z = Matrix[2][0] * v.x + Matrix[2][1] * v.y + Matrix[2][2] * v.z;
-}
-
-
-
-
-/** 3 x 3 matrix - 3 x 3 matrix dot product where both matrices are stored as
-double[][] */
-//----------------------------------------------------------------------------
-void matMatDotProduct( const double A[3][3], const double B[3][3], 
-	double Res[3][3] ) 
-//----------------------------------------------------------------------------
-{
-  for (size_t i=0;i<3;++i)
-    for (size_t j=0;j<3;++j)
-    {
-      Res[i][j] = 0.;
-      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[k][j];
-    }    
-}
-
-
-
-
-/** 3 x 3 matrix - 3 x 3 matrix transposed dot product where both matrices are 
-stored as double[][] */
-//----------------------------------------------------------------------------
-void matMatTransposedDotProduct( const double A[3][3], const double B[3][3], 
-	double Res[3][3] ) 
-//----------------------------------------------------------------------------
-{
-  for (size_t i=0;i<3;++i)
-    for (size_t j=0;j<3;++j)
-    {
-      Res[i][j] = 0.;
-      for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[j][k];
-    }    
-}
-
-
-
-
-/** Computes the inverse of the moment of inertia matrix of a rigid body */
-//----------------------------------------------------------------------------
-void compute_inv_inertia( RigidBody* p )
-//----------------------------------------------------------------------------
-{
-  /* The inertia tensor is */
-  /*  Ixx  Ixy  Ixz */
-  /*  Iyx  Iyy  Iyz */
-  /*  Izx  Izy  Izz */ 
-  /* with */
-  /* Ip[0] = Ixx */
-  /* Ip[1] = Iyy */
-  /* Ip[2] = Izz */
-  /* Ip[3] = Ixy */
-  /* Ip[4] = Ixz */
-  /* Ip[5] = Iyz */
-
-  // Transfer Ip to a 3x3 matrix
-  double Imat[3][3]; 
-  Imat[0][0] = p->Ip[0];
-  Imat[1][1] = p->Ip[1];
-  Imat[2][2] = p->Ip[2];
-
-  Imat[0][1] = p->Ip[3];
-  Imat[0][2] = p->Ip[4];
-  Imat[1][2] = p->Ip[5];
-    
-  Imat[1][0] = Imat[0][1]; 
-  Imat[2][0] = Imat[0][2];
-  Imat[2][1] = Imat[1][2];
-  
-  // Invert Imat and copy the result in p->Ip_inv
-  // Ip_inv is a 2D 3 by 3 array
-  inverse3by3matrix__( Imat, p->Ip_inv );  
 }
 
 

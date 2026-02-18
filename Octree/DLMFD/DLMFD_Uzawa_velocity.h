@@ -155,10 +155,10 @@ void DLMFD_construction()
   // DLM_PeriodicRefCenter, determine rigid body boundary points and link them
   // to the grid via DLM_Index
   allocate_and_init_rigidbodies( allRigidBodies, nbRigidBodies, RBnumToIndex,
-  	DLM_Index, DLM_Flag, DLM_FlagMesh, DLM_PeriodicRefCenter, 
-	&deactivatedBPindices, &deactivatedIndexFieldValues, 
-	&at_least_one_deactivated );
- 
+  	ReferenceRigidBodies, DLM_Index, DLM_Flag, DLM_FlagMesh, 
+	DLM_PeriodicRefCenter, &deactivatedBPindices, 
+	&deactivatedIndexFieldValues, &at_least_one_deactivated );
+
   // Tag the grid along rigid body boundaries two cell layers into the fluid
   fill_FlagMesh( DLM_FlagMesh, DLM_Index, allRigidBodies, nbRigidBodies,
   	RBnumToIndex );	

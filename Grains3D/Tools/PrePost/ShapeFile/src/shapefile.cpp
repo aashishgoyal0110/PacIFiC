@@ -15,10 +15,11 @@ int main(int argc, char *argv[])
   ofstream fileOUT;
   double pi = fabs(acos(-1.));
   double x, y, z ;
-  double cote, rayon_sphere, arete, half_arete, longueur, largeur, hauteur ;  
+  double edge, sphere_radius, half_edge, length, width, height, 
+  	coord, vol ;  
   double dtheta, theta, theta0, rc, rd, surface, zzz ; 
   double rcirc, h, l ;
-  double golden_number = 0.5 * ( 1. + sqrt(5.) ) ;
+  double gold = 0.5 * ( 1. + sqrt(5.) ), sqrt2o2 = sqrt( 2. ) / 2. ;
      
   while(!good_choice)
   {
@@ -27,11 +28,13 @@ int main(int argc, char *argv[])
     cout << "  (2) 3D box" << endl;
     cout << "  (3) Cube" << endl;    
     cout << "  (4) Regular tetrahedron" << endl;
-    cout << "  (5) Regular icosahedron" << endl;    
+    cout << "  (5) Regular octahedron" << endl;
+    cout << "  (6) Regular dodecahedron" << endl;        
+    cout << "  (7) Regular icosahedron" << endl;    
     cout << "Choice : ";
     cin >> choice;
   
-    if ( choice < 0 || choice > 5 )
+    if ( choice < 0 || choice > 7 )
       cout << "Wrong choice, select again" << endl;
     else
       good_choice = true;
@@ -104,9 +107,9 @@ int main(int argc, char *argv[])
       while(!good_choice)
       { 
         cout << "Length = ";
-        cin >> longueur;
+        cin >> length;
   
-        if ( longueur < 0. )
+        if ( length < 0. )
           cout << "Wrong choice, length > 0, enter again" << endl;
         else
           good_choice = true;
@@ -115,9 +118,9 @@ int main(int argc, char *argv[])
       while(!good_choice)
       { 
         cout << "Depth = ";
-        cin >> largeur;
+        cin >> width;
   
-        if ( largeur < 0. )
+        if ( width < 0. )
           cout << "Wrong choice, depth > 0, enter again" << endl;
         else
           good_choice = true;
@@ -126,25 +129,25 @@ int main(int argc, char *argv[])
       while(!good_choice)
       { 
         cout << "Height = ";
-        cin >> hauteur;
+        cin >> height;
   
-        if ( hauteur < 0. )
+        if ( height < 0. )
           cout << "Wrong choice, height > 0, enter again" << endl;
         else
           good_choice = true;
       }
       
       cout << "3D Box" << endl;
-      cout << "   Length = " << longueur << endl;
-      cout << "   Depth = " << largeur << endl;      
-      cout << "   Height = " << hauteur << endl;      
+      cout << "   Length = " << length << endl;
+      cout << "   Depth = " << width << endl;      
+      cout << "   Height = " << height << endl;      
       
-      if ((longueur==largeur)&&(longueur==hauteur)) filename="cube.insert";
+      if ((length==width)&&(length==height)) filename="cube.insert";
       else filename="3Dbox.insert";
       
-      x=longueur/2.;
-      y=largeur/2.;
-      z=hauteur/2.;
+      x=length/2.;
+      y=width/2.;
+      z=height/2.;
       fileOUT.open(filename.c_str(),ios::out);
       
       fileOUT << "3" << endl << "8" << endl;
@@ -167,7 +170,7 @@ int main(int argc, char *argv[])
       fileOUT.close(); 
       
       cout << "   Volume-equivalent sphere radius = " << 
-      	pow( 3. * longueur * largeur * hauteur / ( 4. * pi ) , 1./3. ) << endl;
+      	pow( 3. * length * width * height / ( 4. * pi ) , 1./3. ) << endl;
       break;
       
     case 3:
@@ -175,21 +178,21 @@ int main(int argc, char *argv[])
       while(!good_choice)
       { 
         cout << "Volume-equivalent sphere radius = ";
-        cin >> rayon_sphere;
+        cin >> sphere_radius;
   
-        if ( rayon_sphere < 0. )
+        if ( sphere_radius < 0. )
           cout << "Wrong choice, radius > 0, enter again" << endl;
         else
           good_choice = true;
       } 
-      cote = rayon_sphere * pow( 4. * pi / 3., 1./3. );      
+      edge = sphere_radius * pow( 4. * pi / 3., 1./3. );      
 
       cout << "Cube" << endl;
-      cout << "   edge length = " << cote << endl;
+      cout << "   edge length = " << edge << endl;
 
       filename="cube.insert";
       
-      x=cote/2.;
+      x=edge/2.;
       fileOUT.open(filename.c_str(),ios::out);
       
       fileOUT << "3" << endl << "8" << endl;
@@ -217,22 +220,22 @@ int main(int argc, char *argv[])
       while(!good_choice)
       { 
         cout << "Volume-equivalent sphere radius = ";
-        cin >> rayon_sphere;
+        cin >> sphere_radius;
   
-        if ( rayon_sphere < 0. )
+        if ( sphere_radius < 0. )
           cout << "Wrong choice, radius > 0, enter again" << endl;
         else
           good_choice = true;
       } 
-      arete = rayon_sphere * pow( 8. * sqrt(2.) * pi, 1./3. );      
+      edge = sphere_radius * pow( 8. * sqrt(2.) * pi, 1./3. );      
 
       cout << "Tetrahedron" << endl;
-      cout << "   edge length = " << arete  << endl;
+      cout << "   edge length = " << edge  << endl;
 
       filename="regulartetrahedron.insert";  
       
       theta = 2. * atan( sqrt(2.) ) - pi / 2.;
-      rcirc = sqrt( 3. / 8. ) * arete;
+      rcirc = sqrt( 3. / 8. ) * edge;
       h = rcirc * sin (theta);
       l = rcirc * cos (theta);      
 
@@ -251,25 +254,134 @@ int main(int argc, char *argv[])
       
       fileOUT.close();          
       break;
-      
+
     case 5:
       good_choice = false; 
       while(!good_choice)
       { 
         cout << "Volume-equivalent sphere radius = ";
-        cin >> rayon_sphere;
+        cin >> sphere_radius;
   
-        if ( rayon_sphere < 0. )
+        if ( sphere_radius < 0. )
           cout << "Wrong choice, radius > 0, enter again" << endl;
         else
           good_choice = true;
       } 
-      arete = pow( 48. * pi / ( 15. * ( 3. + sqrt(5.) ) ) , 0.3333333333 ) 
-      		* rayon_sphere ;
-      half_arete = 0.5 * arete ;
+      edge = pow( 4. * pi / sqrt(2.) , 0.3333333333 ) * sphere_radius ;
+      coord = edge / sqrt(2.);
+
+      cout << "Octahedron" << endl;
+      cout << "   edge length = " << edge  << endl;
+      
+      filename="regularoctahedron.insert";
+      
+      fileOUT.open(filename.c_str(),ios::out);
+      fileOUT.setf(std::ios::scientific,std::ios::floatfield);
+      fileOUT.precision(8);
+      
+      fileOUT << "3" << endl << "6" << endl;
+      fileOUT << sqrt2o2 * coord << " " << sqrt2o2 * coord << " 0." << endl;
+      fileOUT << - sqrt2o2 * coord << " " << - sqrt2o2 * coord << " 0." << endl;
+      fileOUT << - sqrt2o2 * coord << " " << sqrt2o2 * coord << " 0." << endl;
+      fileOUT << sqrt2o2 * coord << " " << - sqrt2o2 * coord << " 0." << endl;
+      fileOUT << "0. 0. " << coord << endl;
+      fileOUT << "0. 0. " << - coord << endl;  
+      fileOUT << endl << "8" << endl; 
+      fileOUT << "4 1 3" << endl;
+      fileOUT << "4 2 1" << endl;      
+      fileOUT << "4 0 2" << endl;      
+      fileOUT << "4 3 0" << endl;
+      fileOUT << "5 3 1" << endl;
+      fileOUT << "5 1 2" << endl;
+      fileOUT << "5 2 0" << endl;      
+      fileOUT << "5 0 3" << endl;                                   
+                  
+      fileOUT.close();        
+      
+      break;
+      
+    case 6:
+      good_choice = false; 
+      while(!good_choice)
+      { 
+        cout << "Volume-equivalent sphere radius = ";
+        cin >> sphere_radius;
+  
+        if ( sphere_radius < 0. )
+          cout << "Wrong choice, radius > 0, enter again" << endl;
+        else
+          good_choice = true;
+      } 
+      vol = ( 4. / 3. ) * pi * pow( sphere_radius, 3. );
+      edge = pow( 2. * vol / ( sqrt( 5. ) * pow( gold, 4. ) ), 
+      	0.3333333333 ) ;
+      zzz = 0.5 * gold * edge ;
+
+      cout << "Dodecahedron" << endl;
+      cout << "   edge length = " << edge  << endl;
+      
+      filename="regulardodecahedron.insert";
+      
+      fileOUT.open(filename.c_str(),ios::out);
+      fileOUT.setf(std::ios::scientific,std::ios::floatfield);
+      fileOUT.precision(8);      
+      fileOUT << "3" << endl << "20" << endl;
+      fileOUT << zzz << " " << - zzz << " " << zzz << endl;
+      fileOUT << zzz << " " << zzz << " " << zzz << endl;      
+      fileOUT << - zzz << " " << zzz << " " << zzz << endl;
+      fileOUT << - zzz << " " << - zzz << " " << zzz << endl;        
+      fileOUT << zzz << " " << - zzz << " " << - zzz << endl;
+      fileOUT << zzz << " " << zzz << " " << - zzz << endl;      
+      fileOUT << - zzz << " " << zzz << " " << - zzz << endl;
+      fileOUT << - zzz << " " << - zzz << " " << - zzz << endl;      
+      fileOUT << "0. " << - zzz * gold << " " << zzz / gold << endl;
+      fileOUT << "0. " << - zzz * gold << " " << - zzz / gold << endl;      
+      fileOUT << "0. " << zzz * gold << " " << - zzz / gold << endl;      
+      fileOUT << "0. " << zzz * gold << " " << zzz / gold << endl;      
+      fileOUT << zzz / gold << " 0. " << " " << zzz * gold << endl;      
+      fileOUT << zzz / gold << " 0. " << " " << - zzz * gold << endl;
+      fileOUT << - zzz / gold << " 0. " << " " << - zzz * gold << endl;   
+      fileOUT << - zzz / gold << " 0. " << " " << zzz * gold << endl;  
+      fileOUT << zzz * gold << " " << zzz / gold << " 0." << endl;
+      fileOUT << zzz * gold << " " << - zzz / gold << " 0." << endl;
+      fileOUT << - zzz * gold << " " << - zzz / gold << " 0." << endl;
+      fileOUT << - zzz * gold << " " << zzz / gold << " 0." << endl;
+      fileOUT << endl << "12" << endl; 
+      fileOUT << "15 2 19 18 3" << endl;
+      fileOUT << "15 12 1 11 2" << endl;      
+      fileOUT << "12 0 17 16 1" << endl;      
+      fileOUT << "0 12 15 3 8" << endl;
+      fileOUT << "2 11 10 6 19" << endl;
+      fileOUT << "1 16 5 10 11" << endl;
+      fileOUT << "18 19 6 14 7" << endl;      
+      fileOUT << "10 5 13 14 6" << endl;      
+      fileOUT << "17 4 13 5 16" << endl;
+      fileOUT << "9 7 14 13 4" << endl;
+      fileOUT << "0 8 9 4 17" << endl;
+      fileOUT << "3 18 7 9 8" << endl;                                    
+                  
+      fileOUT.close();        
+      
+      break; 
+      
+    case 7:
+      good_choice = false; 
+      while(!good_choice)
+      { 
+        cout << "Volume-equivalent sphere radius = ";
+        cin >> sphere_radius;
+  
+        if ( sphere_radius < 0. )
+          cout << "Wrong choice, radius > 0, enter again" << endl;
+        else
+          good_choice = true;
+      } 
+      edge = pow( 48. * pi / ( 15. * ( 3. + sqrt(5.) ) ) , 0.3333333333 ) 
+      		* sphere_radius ;
+      half_edge = 0.5 * edge ;
 
       cout << "Icosahedron" << endl;
-      cout << "   edge length = " << arete  << endl;
+      cout << "   edge length = " << edge  << endl;
       
       filename="regularicosahedron.insert";
       
@@ -278,26 +390,18 @@ int main(int argc, char *argv[])
       fileOUT.precision(8);
       
       fileOUT << "3" << endl << "12" << endl;
-      fileOUT << - golden_number * half_arete << " " << - half_arete << " 0."
-      	<< endl;
-      fileOUT << golden_number * half_arete << " " << - half_arete << " 0."
-      	<< endl;
-      fileOUT << golden_number * half_arete << " " << half_arete << " 0."
-      	<< endl;	
-      fileOUT << - golden_number * half_arete << " " << half_arete << " 0."
-      	<< endl;		    
-      fileOUT << "0. " << - golden_number * half_arete << " " << - half_arete
-      	<< endl;
-      fileOUT << "0. " << golden_number * half_arete << " " << - half_arete
-      	<< endl;
-      fileOUT << "0. "  << golden_number * half_arete << " " << half_arete
-      	<< endl;	
-      fileOUT << "0. "  << - golden_number * half_arete << " " << half_arete
-      	<< endl;
-      fileOUT << - half_arete << " 0. " << - golden_number * half_arete << endl;
-      fileOUT << - half_arete << " 0. " << golden_number * half_arete << endl;
-      fileOUT << half_arete << " 0. " << golden_number * half_arete << endl;	
-      fileOUT << half_arete << " 0. " << - golden_number * half_arete << endl;
+      fileOUT << - gold * half_edge << " " << - half_edge << " 0." << endl;
+      fileOUT << gold * half_edge << " " << - half_edge << " 0." << endl;
+      fileOUT << gold * half_edge << " " << half_edge << " 0." << endl;	
+      fileOUT << - gold * half_edge << " " << half_edge << " 0." << endl;
+      fileOUT << "0. " << - gold * half_edge << " " << - half_edge << endl;
+      fileOUT << "0. " << gold * half_edge << " " << - half_edge << endl;
+      fileOUT << "0. "  << gold * half_edge << " " << half_edge << endl;
+      fileOUT << "0. "  << - gold * half_edge << " " << half_edge << endl;
+      fileOUT << - half_edge << " 0. " << - gold * half_edge << endl;
+      fileOUT << - half_edge << " 0. " << gold * half_edge << endl;
+      fileOUT << half_edge << " 0. " << gold * half_edge << endl;	
+      fileOUT << half_edge << " 0. " << - gold * half_edge << endl;
       fileOUT << endl << "20" << endl; 
       fileOUT << "10 2 1" << endl;
       fileOUT << "2 11 1" << endl;      
@@ -322,7 +426,7 @@ int main(int argc, char *argv[])
                   
       fileOUT.close();        
       
-      break;                  
+      break;                                
 
   }  
         

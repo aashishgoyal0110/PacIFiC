@@ -236,6 +236,99 @@ void create_FD_Boundary_CircularCylinder3D( GeomParameter const* gcp,
 
 
 
+/** Creates boundary points and normal vectors of the reference 3D circular 
+cylinder */
+//----------------------------------------------------------------------------
+void create_referenceRB_boundary_geomfeatures_CircularCylinder3D( 
+	GeomParameter const* gcp, RigidBodyBoundary* dlm_bd, const int m ) 
+//----------------------------------------------------------------------------
+{
+  double delta = L0 / (double)(1 << MAXLEVEL) ;
+  double spacing = INTERBPCOEF * delta;
+  coord pos, unit_axial, n_cross_rad;
+  int isb = 0;
+  
+  foreach_dimension() 
+    unit_axial.x = gcp->cgp->BottomToTopVec.x / gcp->cgp->height;
+  n_cross_rad.x = unit_axial.y * gcp->cgp->RadialRefVec.z 
+  	- unit_axial.z * gcp->cgp->RadialRefVec.y; 
+  n_cross_rad.y = unit_axial.z * gcp->cgp->RadialRefVec.x 
+  	- unit_axial.x * gcp->cgp->RadialRefVec.z;    
+  n_cross_rad.z = unit_axial.x * gcp->cgp->RadialRefVec.y 
+  	- unit_axial.y * gcp->cgp->RadialRefVec.x; 
+    
+  // Cylinder height (diamond meshing)
+  size_t npts_height = (size_t)( 2. * gcp->cgp->height / ( sqrt(3.) * spacing ) ) 
+  	+ 1 ;
+  size_t npts_local_radius = (size_t)( 2. * pi * gcp->cgp->radius / spacing );
+  double bin, local_angle, dangle = pi / (double)(npts_local_radius),
+	delta_height = gcp->cgp->height / ( (double)(npts_height) - 1. ) ;  
+  for (size_t i=0;i<npts_height;++i)
+  {
+    // odd or even
+    if ( i % 2 == 0 ) bin = 0.;
+    else bin = 1.;
+
+    for (size_t j=0;j<npts_local_radius;++j)
+    {
+      local_angle = ( 2. * (double)(j) + bin ) * dangle ;      
+      
+      foreach_dimension() 
+        pos.x = cos( local_angle ) * gcp->cgp->RadialRefVec.x
+      		+ sin( local_angle ) * n_cross_rad.x
+		+ (double)(i) * delta_height * unit_axial.x
+		+ gcp->cgp->BottomCenter.x;                
+		
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      isb++;
+    }
+  }
+
+  // Bottom and top centers
+  foreach_dimension() pos.x = gcp->cgp->BottomCenter.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+  isb++;
+  		  
+  foreach_dimension() pos.x = gcp->cgp->TopCenter.x;
+  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+  isb++;  
+
+  // Bottom and top disks in concentric circles 
+  size_t npts_radius = (size_t)( gcp->cgp->radius / spacing ) + 1 ;
+  double delta_radius = gcp->cgp->radius / ( (double)(npts_radius) - 1. ) ;
+  for (size_t i=1;i<npts_radius-1;++i)
+  {
+    double local_radius = (double)(i) * delta_radius ;
+    double local_radius_ratio = local_radius / gcp->cgp->radius ;
+    npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
+      
+    for (size_t j=0;j<npts_local_radius;++j)
+    {      
+      local_angle = 2. * pi * (double)(j) / (double)(npts_local_radius) ;
+      
+      foreach_dimension() 
+        pos.x = local_radius_ratio * ( 
+			cos( local_angle ) * gcp->cgp->RadialRefVec.x
+			+ sin( local_angle ) * n_cross_rad.x );     	
+      
+      // Bottom disk
+      foreach_dimension() 
+        pos.x += gcp->cgp->BottomCenter.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      isb++;      
+      
+      // Top disk
+      foreach_dimension() 
+        pos.x += gcp->cgp->BottomToTopVec.x;
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      isb++;      
+    }
+  }
+}
+
+
+
+
 /** Finds cells lying inside the 3D circular cylinder */
 //----------------------------------------------------------------------------
 void create_FD_Interior_CircularCylinder3D( RigidBody* p, vector Index,
@@ -267,10 +360,11 @@ void create_FD_Interior_CircularCylinder3D( RigidBody* p, vector Index,
 
 /** Reads geometric parameters of the 3D circular cylinder */
 //----------------------------------------------------------------------------
-void update_CircularCylinder3D( GeomParameter* gcp ) 
+void update_CircularCylinder3D( GeomParameter* gcp, const double RotMat[3][3] ) 
 //----------------------------------------------------------------------------
 {    
   char* token = NULL;
+  coord v;
 
   // Read number of points, check that it is 3
   size_t np = 0;
@@ -309,6 +403,28 @@ void update_CircularCylinder3D( GeomParameter* gcp )
   // token but we do not do anything with it
   strtok( NULL, " " );
   
+  
+  // In case the reference rigid body was sent by the granular solver with 
+  // a non zero center of mass and/or a non-zero identity angular position
+  // we need to reset all corners to the neutral reference position
+  // Bottom disk center
+  // Translation    
+  foreach_dimension() v.x = gcp->cgp->BottomCenter.x - gcp->center.x;
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->cgp->BottomCenter) );
+  
+  // Radial reference vector 
+  foreach_dimension() v.x = gcp->cgp->RadialRefVec.x; 
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->cgp->RadialRefVec) );
+  
+  // Top disk center
+  // Translation    
+  foreach_dimension() v.x = gcp->cgp->TopCenter.x - gcp->center.x;
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->cgp->TopCenter) );
+  
+  
   // Compute the bottom to top vector
   foreach_dimension() 
     gcp->cgp->BottomToTopVec.x = gcp->cgp->TopCenter.x 
@@ -321,6 +437,47 @@ void update_CircularCylinder3D( GeomParameter* gcp )
   gcp->cgp->height = sqrt( sq( gcp->cgp->BottomToTopVec.x ) 
   	+ sq( gcp->cgp->BottomToTopVec.y )
   	+ sq( gcp->cgp->BottomToTopVec.z ) );	  
+}
+
+
+
+
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_CircularCylinder3D_from_RBRef( GeomParameter* gcp, 
+	RigidBody const* RBRef, const double RotMat[3][3] ) 
+//----------------------------------------------------------------------------
+{        
+  // Allocate the CylGeomParameter structure
+  gcp->cgp = (CylGeomParameter*) malloc( sizeof(CylGeomParameter) );
+
+  // Bottom disk center
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.cgp->BottomCenter, 
+    	&(gcp->cgp->BottomCenter) );	
+  // Translation
+  foreach_dimension() gcp->cgp->BottomCenter.x += gcp->center.x;
+
+  // Radial reference vector 
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.cgp->RadialRefVec, 
+    	&(gcp->cgp->RadialRefVec) );
+
+  // Top disk center
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.cgp->TopCenter, 
+    	&(gcp->cgp->TopCenter) );	
+  // Translation
+  foreach_dimension() gcp->cgp->TopCenter.x += gcp->center.x; 	 
+
+  // Compute the bottom to top vector
+  foreach_dimension() 
+    gcp->cgp->BottomToTopVec.x = gcp->cgp->TopCenter.x 
+    		- gcp->cgp->BottomCenter.x;
+
+  // Assign the bottom radius, top radius and the height
+  gcp->cgp->radius = RBRef->g.cgp->radius;	
+  gcp->cgp->height = RBRef->g.cgp->height;  
 }
 
 

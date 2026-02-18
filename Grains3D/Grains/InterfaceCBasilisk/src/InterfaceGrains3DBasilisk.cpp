@@ -58,7 +58,7 @@ extern "C" {
   {
     // We use the interface function of PeliGRIFF
     istringstream iss;
-    grains->GrainsToFluid( iss );
+    grains->GrainsToFluid2( iss );
 
     // We remove the formatting and separate each entry by " "
     string buff;

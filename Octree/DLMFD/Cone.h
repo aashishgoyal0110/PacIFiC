@@ -1,11 +1,11 @@
 /** 
-# Set of functions for a truncated cone 
+# Set of functions for a cone 
 */
 
 
 # include "Polyhedron.h"
 
-/** Tests whether a point lies inside the truncated cone */
+/** Tests whether a point lies inside the cone */
 //----------------------------------------------------------------------------
 bool is_in_Cone_clone( const double x, const double y, 
 	const double z, GeomParameter const* gcp )
@@ -41,8 +41,7 @@ bool is_in_Cone_clone( const double x, const double y,
 
 
 
-/** Tests whether a point lies inside the truncated cone or any of its 
-periodic clones */
+/** Tests whether a point lies inside the cone or any of its periodic clones */
 //----------------------------------------------------------------------------
 bool is_in_Cone( const double x1, const double y1, 
 	const double z1, GeomParameter const* gcp )
@@ -71,9 +70,8 @@ bool is_in_Cone( const double x1, const double y1,
 
 
 
-/** Tests whether a point lies inside the truncated cone or any of its 
-periodic clones and assign the proper center of mass coordinates associated to
-this point */
+/** Tests whether a point lies inside the cone or any of its periodic clones 
+and assign the proper center of mass coordinates associated to this point */
 //----------------------------------------------------------------------------
 bool in_which_Cone( double x1, double y1, double z1, 
 	GeomParameter const* gcp, vector* pPeriodicRefCenter, 
@@ -111,8 +109,7 @@ bool in_which_Cone( double x1, double y1, double z1,
 
 
 
-/** Computes the number of boundary points on the perimeter of the truncated 
-cone */
+/** Computes the number of boundary points on the perimeter of the cone */
 //----------------------------------------------------------------------------
 void compute_nboundary_Cone( GeomParameter const* gcp, int* nb ) 
 //----------------------------------------------------------------------------
@@ -153,7 +150,7 @@ void compute_nboundary_Cone( GeomParameter const* gcp, int* nb )
 
 
 
-/** Creates boundary points on the surface of the truncated cone */
+/** Creates boundary points on the surface of the cone */
 //----------------------------------------------------------------------------
 void create_FD_Boundary_Cone( GeomParameter const* gcp,
 	RigidBodyBoundary* dlm_bd, const int nsphere, 
@@ -265,7 +262,103 @@ void create_FD_Boundary_Cone( GeomParameter const* gcp,
 
 
 
-/** Finds cells lying inside the truncated cone */
+/** Creates boundary points and normal vectors of the reference cone */
+//----------------------------------------------------------------------------
+void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
+	RigidBodyBoundary* dlm_bd, const int m ) 
+//----------------------------------------------------------------------------
+{
+  double delta = L0 / (double)(1 << MAXLEVEL) ;
+  double spacing = INTERBPCOEF * delta, local_angle, local_radius,
+  	local_radius_ratio, delta_radius, inclined_height, bin, dangle, 
+	delta_height;
+  int isb = 0;
+  coord pos, unit_axial, n_cross_rad;
+  size_t npts_local_radius, npts_radius, npts_height;
+  
+  foreach_dimension() 
+    unit_axial.x = gcp->tcgp->BottomToTopVec.x / gcp->tcgp->height;  
+  
+  // Bottom center
+  foreach_dimension() dlm_bd->bp[isb].x = gcp->tcgp->BottomCenter.x;
+  isb++;
+  
+  // Bottom disk in concentric circles
+  n_cross_rad.x = unit_axial.y * gcp->tcgp->BottomRadialRefVec.z 
+  	- unit_axial.z * gcp->tcgp->BottomRadialRefVec.y; 
+  n_cross_rad.y = unit_axial.z * gcp->tcgp->BottomRadialRefVec.x 
+  	- unit_axial.x * gcp->tcgp->BottomRadialRefVec.z;    
+  n_cross_rad.z = unit_axial.x * gcp->tcgp->BottomRadialRefVec.y 
+  	- unit_axial.y * gcp->tcgp->BottomRadialRefVec.x;   
+  npts_radius = (size_t)( gcp->tcgp->BottomRadius / spacing ) + 1 ;
+  delta_radius = gcp->tcgp->BottomRadius 
+  	/ ( (double)(npts_radius) - 1. ) ;
+  for (size_t i=1;i<npts_radius;++i)
+  {
+    local_radius = (double)(i) * delta_radius ;
+    local_radius_ratio = local_radius / gcp->tcgp->BottomRadius ;
+    npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
+      
+    for (size_t j=0;j<npts_local_radius;++j)
+    {      
+      local_angle = 2. * pi * (double)(j) / (double)(npts_local_radius) ;
+      
+      foreach_dimension() 
+        pos.x = local_radius_ratio * ( 
+			cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x
+			+ sin( local_angle ) * n_cross_rad.x );     	
+
+      foreach_dimension() 
+        dlm_bd->bp[isb].x = pos.x + gcp->tcgp->BottomCenter.x;;
+      isb++;          
+    }
+  }
+  
+  // Top center
+  foreach_dimension() dlm_bd->bp[isb].x = gcp->tcgp->TopCenter.x;
+  isb++;
+
+  // Lateral surface
+  foreach_dimension()
+    pos.x = gcp->tcgp->BottomToTopVec.x - gcp->tcgp->BottomRadialRefVec.x;
+  inclined_height = sqrt( sq( pos.x ) + sq( pos.y ) + sq( pos.z ) );
+  npts_height = (size_t)( 2. * inclined_height / ( sqrt(3.) * spacing ) )
+  	+ 1;
+  delta_height = gcp->tcgp->height / ( (double)(npts_height) - 1. ) ;	
+  for (size_t i=1;i<npts_height-1;++i)
+  {
+    local_radius = - gcp->tcgp->BottomRadius
+    	* (double)(i) * delta_height / gcp->tcgp->height 
+	+ gcp->tcgp->BottomRadius;
+    npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
+    dangle = pi / (double)(npts_local_radius);
+     
+    // odd or even
+    if ( i % 2 == 0 ) bin = 0.;
+    else bin = 1.;
+    
+    for (size_t j=0;j<npts_local_radius;++j)
+    {
+      local_angle = ( 2. * (double)(j) + bin ) * dangle ;      
+      
+      foreach_dimension() 
+        pos.x = cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x 
+		* local_radius / gcp->tcgp->BottomRadius 
+      		+ sin( local_angle ) * n_cross_rad.x * local_radius 
+			/ gcp->tcgp->BottomRadius
+		+ (double)(i) * delta_height * unit_axial.x
+		+ gcp->tcgp->BottomCenter.x;                
+		
+      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      isb++;
+    }         		    	
+  }                 
+}
+
+
+
+
+/** Finds cells lying inside the cone */
 //----------------------------------------------------------------------------
 void create_FD_Interior_Cone( RigidBody* p, vector Index,
 	vector PeriodicRefCenter )
@@ -294,13 +387,14 @@ void create_FD_Interior_Cone( RigidBody* p, vector Index,
 
 
 
-/** Reads geometric parameters of the truncated cone */
+/** Reads geometric parameters of the cone */
 //----------------------------------------------------------------------------
-void update_Cone( GeomParameter* gcp ) 
+void update_Cone( GeomParameter* gcp, const double RotMat[3][3] ) 
 //----------------------------------------------------------------------------
 {    
   char* token = NULL;
-
+  coord v;
+  
   // Read number of points, check that it is 4
   size_t np = 0;
   token = strtok(NULL, " " );
@@ -342,6 +436,28 @@ void update_Cone( GeomParameter* gcp )
   // array of characters contains an additional "0", hence we need to read one 
   // token but we do not do anything with it
   strtok( NULL, " " );
+
+
+  // In case the reference rigid body was sent by the granular solver with 
+  // a non zero center of mass and/or a non-zero identity angular position
+  // we need to reset all corners to the neutral reference position
+  // Bottom disk center
+  // Translation    
+  foreach_dimension() v.x = gcp->tcgp->BottomCenter.x - gcp->center.x;
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->tcgp->BottomCenter) );
+  
+  // Bottom radial reference vector 
+  foreach_dimension() v.x = gcp->tcgp->BottomRadialRefVec.x; 
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->tcgp->BottomRadialRefVec) );
+  
+  // Top disk center
+  // Translation    
+  foreach_dimension() v.x = gcp->tcgp->TopCenter.x - gcp->center.x;
+  // Rotation
+  matTransposedCoordDotProduct( RotMat, v, &(gcp->tcgp->TopCenter) );
+
   
   // Compute the bottom to top vector
   foreach_dimension() 
@@ -363,7 +479,53 @@ void update_Cone( GeomParameter* gcp )
 
 
 
-/** Frees the geometric parameters of the truncated cone */
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_Cone_from_RBRef( GeomParameter* gcp, 
+	RigidBody const* RBRef, const double RotMat[3][3] ) 
+//----------------------------------------------------------------------------
+{        
+  // Allocate the CylGeomParameter structure
+  gcp->tcgp = (TruncConeGeomParameter*) malloc( 
+  	sizeof(TruncConeGeomParameter) );
+
+  // Bottom disk center
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.tcgp->BottomCenter, 
+    	&(gcp->tcgp->BottomCenter) );	
+  // Translation
+  foreach_dimension() gcp->tcgp->BottomCenter.x += gcp->center.x;
+
+  // Bottom radial reference vector 
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.tcgp->BottomRadialRefVec, 
+    	&(gcp->tcgp->BottomRadialRefVec) );
+	
+  // Top disk center
+  // Rotation
+  matCoordDotProduct( RotMat, RBRef->g.tcgp->TopCenter, 
+    	&(gcp->tcgp->TopCenter) );	
+  // Translation
+  foreach_dimension() gcp->tcgp->TopCenter.x += gcp->center.x;
+  
+  // Top radial reference vector 
+  foreach_dimension() gcp->tcgp->TopRadialRefVec.x = 0.; 	 
+  
+  // Compute the bottom to top vector
+  foreach_dimension() 
+    gcp->tcgp->BottomToTopVec.x = gcp->tcgp->TopCenter.x 
+    		- gcp->tcgp->BottomCenter.x;
+    
+  // Assign the bottom radius, top radius and the height
+  gcp->tcgp->BottomRadius = RBRef->g.tcgp->BottomRadius;
+  gcp->tcgp->TopRadius = 0.;	
+  gcp->tcgp->height = RBRef->g.tcgp->height;			  
+}
+
+
+
+
+/** Frees the geometric parameters of the cone */
 //----------------------------------------------------------------------------
 void free_Cone( GeomParameter* gcp ) 
 //----------------------------------------------------------------------------

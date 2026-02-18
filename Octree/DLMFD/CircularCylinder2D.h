@@ -118,8 +118,8 @@ void create_FD_Boundary_CircularCylinder2D( GeomParameter const* gcp,
     fact_theta[i].y = sin( theta[i] );
     
     /* Assign positions x, y on the circular cylinder boundary */ 
-    pos.x = radius * fact_theta[i].x + gcp->center.x + X0;
-    pos.y = radius * fact_theta[i].y + gcp->center.y + Y0;
+    pos.x = radius * fact_theta[i].x + gcp->center.x;
+    pos.y = radius * fact_theta[i].y + gcp->center.y;
 
     /* Check if the point falls outside of the domain */    
     foreach_dimension()
@@ -159,6 +159,28 @@ void create_FD_Boundary_CircularCylinder2D( GeomParameter const* gcp,
 
 
 
+/** Creates boundary points and normal vectors of the 2D circular cylinder */
+//----------------------------------------------------------------------------
+void create_referenceRB_boundary_geomfeatures_CircularCylinder2D( 
+	GeomParameter const* gcp,
+	RigidBodyBoundary* dlm_bd, const int nsphere ) 
+//----------------------------------------------------------------------------
+{
+  int k, m = nsphere;  
+  double thetak, radius = gcp->radius;
+  
+  for (k = 0; k < m; k++) 
+  {
+    thetak = (double)(k) * 2. * pi / (double)(m); 
+    dlm_bd->bp[k].x = radius * cos( thetak );
+    dlm_bd->bp[k].y = radius * sin( thetak );
+    dlm_bd->bp[k].z = 0.;
+  }
+}
+
+
+
+
 /** Finds cells lying inside the 2D circular cylinder */
 //----------------------------------------------------------------------------
 void create_FD_Interior_CircularCylinder2D( RigidBody* p, vector Index,
@@ -189,12 +211,23 @@ void create_FD_Interior_CircularCylinder2D( RigidBody* p, vector Index,
 
 /** Reads geometric parameters of the 2D circular cylinder */
 //----------------------------------------------------------------------------
-void update_CircularCylinder2D( GeomParameter* gcp ) 
+void update_CircularCylinder2D( GeomParameter* gcp, const double RotMat[3][3] ) 
 //----------------------------------------------------------------------------
 {    
   // TO DO
 }
 
+
+
+
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_CircularCylinder2D_from_RBRef( GeomParameter* gcp, 
+	RigidBody const* RBRef )
+//----------------------------------------------------------------------------
+{
+  // Nothing to do  
+}
 
 
 

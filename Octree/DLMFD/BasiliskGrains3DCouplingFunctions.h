@@ -40,7 +40,8 @@ void UpdateDLMFDtoGS_vel( double** arrayv, RigidBody* allrbs,
 from the granular solver */
 //----------------------------------------------------------------------------
 char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
-	RigidBody* allrbs, const size_t nrb_, double rho_f_, bool init_ )
+	RigidBody* allrbs, const size_t nrb_, RigidBody const* allrefrbs,
+	double rho_f_, bool init_ )
 //----------------------------------------------------------------------------
 {
 # if _MPI
@@ -68,12 +69,13 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
     printf ("Error in number of rigid bodies in UpdateParticlesBasilisk\n");
   
   // Read the parsed array of character for each rigid body
-  double Ux = 0., Uy = 0., Uz = 0., omx = 0., omy = 0., omz = 0., rhop = 0., 
-  	massp  = 0., Ixx = 0., Ixy = 0., Ixz = 0., Iyy = 0., Iyz = 0., Izz = 0.,
-	gx = 0., gy = 0., gz = 0., radiusp = 0.,
+  double Ux = 0., Uy = 0., Uz = 0., omx = 0., omy = 0., omz = 0., 
+	gx = 0., gy = 0., gz = 0., 
 	MRxx = 0., MRxy = 0., MRxz = 0., MRyx = 0., MRyy = 0., MRyz = 0.,
-	MRzx = 0., MRzy = 0., MRzz = 0.;
-  int ncornersp = 0, pnum = 0;
+	MRzx = 0., MRzy = 0., MRzz = 0.,
+	bbminx, bbminy, bbminz, bbmaxx, bbmaxy, bbmaxz;
+  int pnum = 0;
+  size_t gtype = 0;
   char RBTag[3] = "";
   char particleDefaultTag[] = "P";
   char periodicParticleDefaultTag[] = "PP"; 
@@ -81,7 +83,8 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
   int nperclonesp = 0;
   double* vecx = NULL;
   double* vecy = NULL;
-  double* vecz = NULL;  
+  double* vecz = NULL; 
+  RigidBody const* RBRef = NULL; 
   
   for (size_t k = 0; k < nrb_; k++) 
   { 
@@ -96,9 +99,9 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
     sscanf( token, "%u", &pnum );     
     allrbs[k].pnum = pnum;
 
-    // Read the rigid body's number of corners or code
+    // Read the rigid body geometric type
     token = strtok( NULL, " " );
-    sscanf( token, "%d", &ncornersp ); 
+    sscanf( token, "%lu", &gtype );         
     
     // Read the rigid body type: particle, periodic particle or obstacle 
     token = strtok( NULL, " " );
@@ -138,41 +141,7 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
 
     // Read omega_z
     token = strtok( NULL, " " );
-    sscanf( token, "%lf", &omz );
-    
-    // Read density
-    token = strtok( NULL, " " );
-    sscanf( token, "%lf", &rhop );
-    
-    // Read mass
-    token = strtok( NULL, " " );
-    sscanf( token, "%lf", &massp );
-    
-#   if dimension == 3
-      // Read Ixx
-      token = strtok( NULL, " " );
-      sscanf( token, "%lf", &Ixx ); 
-
-      // Read Ixy
-      token = strtok( NULL, " " );
-      sscanf( token, "%lf", &Ixy );
-      
-      // Read Ixz
-      token = strtok( NULL, " " );
-      sscanf( token, "%lf", &Ixz );       
-
-      // Read Iyy
-      token = strtok( NULL, " " );
-      sscanf( token, "%lf", &Iyy ); 
-
-      // Read Iyz
-      token = strtok( NULL, " " );
-      sscanf( token, "%lf", &Iyz );
-#   endif  
-      
-    // Read Izz
-    token = strtok( NULL, " " );
-    sscanf( token, "%lf", &Izz );                 
+    sscanf( token, "%lf", &omz );              
 
 #   if dimension == 3
       // Read MRxx
@@ -224,8 +193,36 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
       // Read gz
       token = strtok( NULL, " " );
       sscanf( token, "%lf", &gz );
-#   endif                    
+#   endif
 
+    // Read bbminx
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &bbminx );
+    
+    // Read bbminy
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &bbminy );
+    
+#   if dimension == 3
+      // Read bbminz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &bbminz );
+#   endif
+
+    // Read bbmaxx
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &bbmaxx );
+    
+    // Read bbmaxy
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &bbmaxy );
+    
+#   if dimension == 3
+      // Read bbmaxz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &bbmaxz );
+#   endif    
+            
     // If RBTag is "PP", read periodic clone vectors
     if ( allrbs[k].type == PERIODICPARTICLE )
     {
@@ -255,42 +252,13 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
       }                 
     }
 
-    // Read radius
-    token = strtok( NULL, " " );
-    sscanf( token, "%lf", &radiusp );
-
-    // Assign the values read to the rigid body data    
-    allrbs[k].rho_s = rhop;
-    allrbs[k].M = massp;
-    allrbs[k].Vp = (allrbs[k].M)/(allrbs[k].rho_s); 
-    /* Inertia tensor: Grains stores them as */
-    /* inertie[0] = Ixx; */
-    /* inertie[1] = Ixy; */
-    /* inertie[2] = Ixz; */
-    /* inertie[3] = Iyy; */
-    /* inertie[4] = Iyz; */
-    /* inertie[5] = Izz; */
-    /* Basilisk stores these as */
-    /* Ip[0] = Ixx */
-    /* Ip[1] = Iyy */
-    /* Ip[2] = Izz */
-    /* Ip[3] = Ixy */
-    /* Ip[4] = Ixz */
-    /* Ip[5] = Iyz */
-#   if dimension == 3
-      allrbs[k].Ip[0] = Ixx;
-      allrbs[k].Ip[1] = Iyy;
-      allrbs[k].Ip[3] = Ixy;
-      allrbs[k].Ip[4] = Ixz;
-      allrbs[k].Ip[5] = Iyz;      
-#   else
-      allrbs[k].Ip[0] = 0.;
-      allrbs[k].Ip[1] = 0.;
-      allrbs[k].Ip[3] = 0.;
-      allrbs[k].Ip[4] = 0.;
-      allrbs[k].Ip[5] = 0.;
-#   endif
-    allrbs[k].Ip[2] = Izz;
+    // Assign the values and coming from the reference rigid body read to the 
+    // rigid body data 
+    RBRef = &(allrefrbs[gtype]);
+    allrbs[k].geomType = gtype;       
+    allrbs[k].rho_s = RBRef->rho_s;
+    allrbs[k].M = RBRef->M;
+    allrbs[k].Vp = RBRef->Vp; 
 #   if dimension == 3
       allrbs[k].RotMat[0][0] = MRxx;
       allrbs[k].RotMat[0][1] = MRxy;
@@ -395,11 +363,9 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
 	foreach_dimension() allrbs[k].w.x = 0.; 
 #     endif 
     }
-    gg->ncorners = ncornersp;
-    if ( gg->ncorners == 666 ) gg->ncorners = 8;
-    else if ( gg->ncorners == 777 || gg->ncorners == 777
-    	|| gg->ncorners == 8888 ) gg->ncorners = 0;
-    gg->radius = radiusp; 
+     
+    gg->ncorners = RBRef->g.ncorners;
+    gg->radius = RBRef->g.radius; 
     gg->nperclones = nperclonesp;    
     if ( nperclonesp )
     {
@@ -421,14 +387,7 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
 	free(vecz);      
     }            
     
-    // DLMFD coupling factor
-    // If B_SPLIT_EXPLICIT_ACCELERATION == false, DLMFD_couplingFactor = 
-    //   ( 1 - FLUID_DENSITY / rho_s )
-    // otherwise DLMFD_couplingFactor = 1
-    allrbs[k].DLMFD_couplingfactor = 1. ;
-#   if !B_SPLIT_EXPLICIT_ACCELERATION
-      allrbs[k].DLMFD_couplingfactor -= rho_f_ / allrbs[k].rho_s ;
-#   endif
+    allrbs[k].DLMFD_couplingfactor = RBRef->DLMFD_couplingfactor ;
 
     // In case rigid bodies are treated as fixed obstacles
     if ( RIGIDBODIES_AS_FIXED_OBSTACLES )
@@ -465,76 +424,62 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
       
     // Compute the inverse of the moment of inertia matrix
     if ( allrbs[k].type != OBSTACLE )
-      compute_inv_inertia( &(allrbs[k]) );
+      compute_inertia_inv_inertia( &(allrbs[k]), RBRef );
     
-    // Read the additional geometric features of the rigid body
-    // Note that the C function strtok keeps track of the pointer to 
-    // the last C string, which explains why we do not need to pass any
-    // parameter to the functions below 
-    switch ( ncornersp )
+    // Set the additional geometric features of the rigid body
+    allrbs[k].shape = RBRef->shape;
+    switch ( allrbs[k].shape )
     {
-#     if dimension == 3
-        case 1: 
-          allrbs[k].shape = SPHERE;
-	  update_Sphere( gg ); 
-          break;
+      case SPHERE: 
+	update_Sphere_from_RBRef( gg, RBRef ); 
+        break;
 
-        // For now, we assume that all 4-corner polyhedrons are tetrahedrons
-	case 4: 
-          allrbs[k].shape = TETRAHEDRON;
-	  update_Tetrahedron( gg );
-          break;
+      case TETRAHEDRON: 
+	update_Tetrahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;
 	  
-        // For now, we assume that all 8-corner polyhedrons are cubes
-	case 8: 
-          allrbs[k].shape = CUBE;
-	  update_Cube( gg );
-          break;
+      case CUBE: 
+	update_Cube_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;
+	
+      case OCTAHEDRON: 
+	update_Octahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;	
 	  
-       // For now, we assume that all 12-corner polyhedrons are icosahedrons
-       case 12: 
-         allrbs[k].shape = ICOSAHEDRON;
-	 update_Icosahedron( gg );
-         break;  
+      case ICOSAHEDRON: 
+	update_Icosahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;  
           
-       // For now, we assume that all 20-corner polyhedrons are dodecahedrons
-       case 20: 
-         allrbs[k].shape = DODECAHEDRON;
-	 update_Dodecahedron( gg );
-         break;
+      case DODECAHEDRON: 
+	update_Dodecahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;
 	 
-       case 666: 
-         allrbs[k].shape = BOX;
-	 update_Box( gg );
-         break;	
+      case BOX: 
+	update_Box_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;	
 	 
-       case 777: 
-         allrbs[k].shape = CIRCULARCYLINDER3D;
-	 update_CircularCylinder3D( gg );
-         break;
+      case CIRCULARCYLINDER3D: 
+	update_CircularCylinder3D_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;
 
-       case 888: 
-         allrbs[k].shape = CONE;
-	 update_Cone( gg );
-         break;
+      case CONE: 
+	update_Cone_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;
 	 
-       case 8888: 
-         allrbs[k].shape = TRUNCATEDCONE;
-	 update_TruncatedCone( gg );
-         break;	 	        	  
-#     else
-        case 1: 
-          allrbs[k].shape = CIRCULARCYLINDER2D;
-	  update_CircularCylinder2D( gg );
-          break;
-#     endif	  	  
+      case TRUNCATEDCONE: 
+        update_TruncatedCone_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break;	 	        	  
+
+      case CIRCULARCYLINDER2D: 
+	update_CircularCylinder2D_from_RBRef( gg, RBRef );
+        break;  	  
 	        
       default:
         fprintf( stderr, "Unknown ncorners in UpdateParticlesBasilisk!!\n" );
     }                               
   }
   
-  return ( pstr );         
+  return ( pstr );        
 }
 
 
@@ -573,7 +518,9 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
   
   // Read the parsed array of character for each rigid body
   double rhop = 0., massp  = 0., Ixx = 0., Ixy = 0., Ixz = 0., Iyy = 0., 
-  	Iyz = 0., Izz = 0., radiusp = 0.;
+  	Iyz = 0., Izz = 0., gx = 0., gy = 0., gz = 0., radiusp = 0.,
+        MRxx = 0., MRxy = 0., MRxz = 0., MRyx = 0., MRyy = 0., MRyz = 0.,
+ 	MRzx = 0., MRzy = 0., MRzz = 0.;
   int ncornersp = 0;
   size_t geomType = 0;
   
@@ -634,6 +581,58 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
     token = strtok( NULL, " " );
     sscanf( token, "%lf", &Izz );                 
 
+#   if dimension == 3
+      // Read MRxx
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRxx ); 
+
+      // Read MRxy
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRxy );
+      
+      // Read MRxz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRxz );       
+
+      // Read MRyx
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRyx );
+      
+      // Read MRyy
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRyy );      
+      
+      // Read MRyz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRyz );      
+      
+      // Read MRz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRzx );
+      
+      // Read MRzy
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &MRzy );       
+#   endif
+
+    // Read MRzz
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &MRzz );
+
+    // Read gx
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &gx );
+    
+    // Read gy
+    token = strtok( NULL, " " );
+    sscanf( token, "%lf", &gy );
+    
+#   if dimension == 3
+      // Read gz
+      token = strtok( NULL, " " );
+      sscanf( token, "%lf", &gz );
+#   endif
+
     // Read radius
     token = strtok( NULL, " " );
     sscanf( token, "%lf", &radiusp );
@@ -670,6 +669,33 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
       allrefrbs[k].Ip[5] = 0.;
 #   endif
     allrefrbs[k].Ip[2] = Izz;
+#   if dimension == 3
+      allrefrbs[k].RotMat[0][0] = MRxx;
+      allrefrbs[k].RotMat[0][1] = MRxy;
+      allrefrbs[k].RotMat[0][2] = MRxz;
+      allrefrbs[k].RotMat[1][0] = MRyx;
+      allrefrbs[k].RotMat[1][1] = MRyy;
+      allrefrbs[k].RotMat[1][2] = MRyz;
+      allrefrbs[k].RotMat[2][0] = MRzx;
+      allrefrbs[k].RotMat[2][1] = MRzy;                        
+#   else
+      allrefrbs[k].RotMat[0][0] = 0.;
+      allrefrbs[k].RotMat[0][1] = 0.;
+      allrefrbs[k].RotMat[0][2] = 0.;
+      allrefrbs[k].RotMat[1][0] = 0.;
+      allrefrbs[k].RotMat[1][1] = 0.;
+      allrefrbs[k].RotMat[1][2] = 0.;
+      allrefrbs[k].RotMat[2][0] = 0.;
+      allrefrbs[k].RotMat[2][1] = 0.;
+#   endif
+    allrefrbs[k].RotMat[2][2] = MRzz;      
+    gg->center.x = gx;
+    gg->center.y = gy;
+#   if dimension == 3
+      gg->center.z = gz;
+#   else
+      gg->center.z = 0.;      
+#   endif    
       
     gg->ncorners = ncornersp;
     if ( gg->ncorners == 666 ) gg->ncorners = 8;
@@ -696,62 +722,83 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
 #     if dimension == 3
         case 1: 
           allrefrbs[k].shape = SPHERE;
-	  update_Sphere( gg ); 
+	  update_Sphere( gg, allrefrbs[k].RotMat ); 
           break;
 
-        // For now, we assume that all 4-corner polyhedrons are tetrahedrons
+        // For now, we assume that all 4-corner polyhedrons are regular 
+	// tetrahedrons
 	case 4: 
           allrefrbs[k].shape = TETRAHEDRON;
-	  update_Tetrahedron( gg );
+	  update_Tetrahedron( gg, allrefrbs[k].RotMat );
           break;
+	  
+        // For now, we assume that all 6-corner polyhedrons are regular 
+	// octahedrons
+	case 6: 
+          allrefrbs[k].shape = OCTAHEDRON;
+	  update_Octahedron( gg, allrefrbs[k].RotMat );
+          break;	  
 	  
         // For now, we assume that all 8-corner polyhedrons are cubes
 	case 8: 
           allrefrbs[k].shape = CUBE;
-	  update_Cube( gg );
+	  update_Cube( gg, allrefrbs[k].RotMat );
           break;
 	  
-       // For now, we assume that all 12-corner polyhedrons are icosahedrons
-       case 12: 
+        // For now, we assume that all 12-corner polyhedrons are regular 
+	// icosahedrons
+        case 12: 
          allrefrbs[k].shape = ICOSAHEDRON;
-	 update_Icosahedron( gg );
+	 update_Icosahedron( gg, allrefrbs[k].RotMat );
          break;  
           
-       // For now, we assume that all 20-corner polyhedrons are dodecahedrons
-       case 20: 
-         allrefrbs[k].shape = DODECAHEDRON;
-	 update_Dodecahedron( gg );
-         break;
+        // For now, we assume that all 20-corner polyhedrons are regular 
+	// dodecahedrons
+        case 20: 
+          allrefrbs[k].shape = DODECAHEDRON;
+	  update_Dodecahedron( gg, allrefrbs[k].RotMat );
+          break;
 	 
-       case 666: 
-         allrefrbs[k].shape = BOX;
-	 update_Box( gg );
-         break;	
+        case 666: 
+          allrefrbs[k].shape = BOX;
+	  update_Box( gg, allrefrbs[k].RotMat );
+          break;	
 	 
-       case 777: 
-         allrefrbs[k].shape = CIRCULARCYLINDER3D;
-	 update_CircularCylinder3D( gg );
-         break;
+        case 777: 
+          allrefrbs[k].shape = CIRCULARCYLINDER3D;
+	  update_CircularCylinder3D( gg, allrefrbs[k].RotMat );
+          break;
 
-       case 888: 
-         allrefrbs[k].shape = CONE;
-	 update_Cone( gg );
-         break;
+        case 888: 
+          allrefrbs[k].shape = CONE;
+	  update_Cone( gg, allrefrbs[k].RotMat );
+          break;
 	 
-       case 8888: 
-         allrefrbs[k].shape = TRUNCATEDCONE;
-	 update_TruncatedCone( gg );
-         break;	 	        	  
+        case 8888: 
+          allrefrbs[k].shape = TRUNCATEDCONE;
+	  update_TruncatedCone( gg, allrefrbs[k].RotMat );
+          break;	 	        	  
 #     else
         case 1: 
           allrefrbs[k].shape = CIRCULARCYLINDER2D;
-	  update_CircularCylinder2D( gg );
+	  update_CircularCylinder2D( gg, allrefrbs[k].RotMat );
           break;
 #     endif	  	  
 	        
       default:
         fprintf( stderr, "Unknown ncorners in UpdateParticlesBasilisk!!\n" );
-    }                               
+    }
+    
+    // Once we define all rigid bodies in their neutral angular position and
+    // centered at the origin, we reset the center of mass position and rotation
+    // matrix to identity
+    foreach_dimension() gg->center.x = 0.;
+    for (size_t i=0;i<3;++i)
+      for (size_t j=0;j<3;++j) 
+        if ( i == j )
+          allrefrbs[k].RotMat[i][j] = 1.;
+	else
+	  allrefrbs[k].RotMat[i][j] = 0.;                                    
   }
 
   return ( pstr );         

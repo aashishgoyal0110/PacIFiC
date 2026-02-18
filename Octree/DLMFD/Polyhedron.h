@@ -71,6 +71,29 @@ void distribute_points_edge( GeomParameter const* gcp, coord const corner1,
 
 
 
+/** Distributes points over an edge of the polyhedron */
+//----------------------------------------------------------------------------
+void distribute_points_edge2( GeomParameter const* gcp, coord const corner1, 
+	coord const corner2, RigidBodyBoundary* dlm_bd, int const lN, 
+	int const istart )
+//----------------------------------------------------------------------------
+{
+  if ( lN > 0 )
+  {
+    coord dinc;
+
+    foreach_dimension()
+      dinc.x = (corner2.x - corner1.x)/(lN-1);
+
+    for (int i = 1; i <= lN-2; i++)
+      foreach_dimension()
+        dlm_bd->bp[istart + i -1].x = corner1.x + (double)i * dinc.x;
+  }
+}
+
+
+
+
 /** Determines on which side of a plane a point lies */
 //----------------------------------------------------------------------------
 int determ_posi_plane( coord* pointOne, coord* pointTwo,
@@ -135,7 +158,6 @@ bool is_in_Polyhedron_clone( double x1, double y1, double z1,
   int npoints;
 
   int* position = (int *) calloc(nfaces, sizeof(int));
-
   for (int i = 0; i < nfaces; i++)
   {
     npoints = gcp->pgp->numPointsOnFaces[i];

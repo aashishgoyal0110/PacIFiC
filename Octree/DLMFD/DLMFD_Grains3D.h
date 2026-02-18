@@ -86,7 +86,7 @@ event GranularSolver_init (t < -1.)
   pstr = CreateReferenceRBBasilisk( pstr, pstrsize, ReferenceRigidBodies,
   	nbReferenceRigidBodies, FLUID_DENSITY );
   free( pstr );
-  
+ 
   if ( pid() == 0 )
   {
     // Get the number of rigid bodies sent by Grains to Basilisk
@@ -116,7 +116,7 @@ event GranularSolver_init (t < -1.)
 
   // Update all rigid body data 
   pstr = UpdateParticlesBasilisk( pstr, pstrsize, allRigidBodies, nbRigidBodies,
-  	FLUID_DENSITY, true ); 	 
+  	ReferenceRigidBodies, FLUID_DENSITY, true );	 	 
   free( pstr );       
 } 
 
@@ -155,7 +155,7 @@ event GranularSolver_predictor (t < -1.)
     
   // Update all rigid body data 
   pstr = UpdateParticlesBasilisk( pstr, pstrsize, allRigidBodies, nbRigidBodies,
-    	FLUID_DENSITY, false );  
+    	ReferenceRigidBodies, FLUID_DENSITY, false );  
   free( pstr ); 
 }
 

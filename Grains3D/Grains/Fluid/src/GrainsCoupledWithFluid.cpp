@@ -1366,7 +1366,9 @@ void GrainsCoupledWithFluid::GrainsToFluidReference( istringstream &is )
     int geomType = 0, ncorners = 0;
     double const* inertia;
     double density = 0., mass = 0., radius = 0.;
-    
+    Point3 const* centre = NULL;
+    Matrix mr;
+        
     // Total number of reference rigid bodies to send to the fluid flow solver
     rb_features << refParticles->size() + obstaclesToFluid.size() << endl;
 
@@ -1380,6 +1382,8 @@ void GrainsCoupledWithFluid::GrainsToFluidReference( istringstream &is )
       density = (*particle)->getDensity();
       mass = (*particle)->getMass();
       radius = (*particle)->getCircumscribedRadius();
+      centre = (*particle)->getPosition();
+      mr = (*particle)->getRigidBody()->getTransform()->getBasis();
       	
       rb_features << geomType << " " << ncorners << endl;
       rb_features << 
@@ -1398,7 +1402,31 @@ void GrainsCoupledWithFluid::GrainsToFluidReference( istringstream &is )
 		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
 			inertia[4] ) << " " <<			
 		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
-			inertia[5] ) << " ";		
+			inertia[5] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Z] ) << " " <<	
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Z] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Y] ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Z] ) << endl;				
       rb_features << radius ;
       (*particle)->writePositionInFluid( rb_features );
     }
@@ -1410,10 +1438,36 @@ void GrainsCoupledWithFluid::GrainsToFluidReference( istringstream &is )
     	geomType++)
     {
       radius = (*obst)->getCircumscribedRadius();
+      centre = (*obst)->getPosition();
       ncorners = (*obst)->getRigidBody()->getConvex()->getNbCorners();
+      mr = (*obst)->getRigidBody()->getTransform()->getBasis();
 
       rb_features << geomType << " " << ncorners << endl;
-      rb_features << "1000. 0. 0. 0. 0. 0. 0. 0. ";			
+      rb_features << "1000. 0. 0. 0. 0. 0. 0. 0. " << 
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[X][Z] ) << " " <<	
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Y][Z] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Y] ) << " " <<			
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			mr[Z][Z] ) << " " <<
+      		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[X] ) << " " <<
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Y] ) << " " <<				
+		GrainsExec::doubleToString( ios::scientific, FORMAT16DIGITS,
+			(*centre)[Z] ) << endl;				      
       rb_features << radius ;
       (*obst)->writePositionInFluid( rb_features );    
     }

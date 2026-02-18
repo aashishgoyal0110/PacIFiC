@@ -96,7 +96,6 @@ void compute_nboundary_Sphere( GeomParameter const* gcp, int* nb )
 //----------------------------------------------------------------------------
 void create_FD_Boundary_Sphere( GeomParameter const* gcp,
 	RigidBodyBoundary* dlm_bd, const int nsphere, 
-	const bool accountForPeriodicity,
 	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
 //----------------------------------------------------------------------------
 {
@@ -159,44 +158,110 @@ void create_FD_Boundary_Sphere( GeomParameter const* gcp,
     pos.z = hydro_radius * cos( thetak ) + gcp->center.z;
 
     /* Check if the point falls outside of the domain in case of periodicity */
-    if ( accountForPeriodicity )
+    foreach_dimension()
     {
-      foreach_dimension()
+      shift.x = 0.;      
+      if ( Period.x )
       {
-        shift.x = 0.;      
-        if ( Period.x )
-        {
-	  if ( pos.x > L0 + ori.x )
-	  {  
-	    pos.x -= L0;
-	    shift.x = - L0;
-	  }
-          else if ( pos.x < 0. + ori.x )
-	  {
-	    pos.x += L0;
-	    shift.x = L0;
-	  }
-        }
+	if ( pos.x > L0 + ori.x )
+	{  
+	  pos.x -= L0;
+	  shift.x = - L0;
+	}
+        else if ( pos.x < 0. + ori.x )
+	{
+	  pos.x += L0;
+	  shift.x = L0;
+	}
       }
+    }
 
-      if ( setPeriodicRefCenter )
-      {
-        // Setting the periodic clone center vector field
-        foreach_point( pos.x, pos.y, pos.z )
-          foreach_dimension()
-	    pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
-      }
+    if ( setPeriodicRefCenter )
+    {
+      // Setting the periodic clone center vector field
+      foreach_point( pos.x, pos.y, pos.z )
+        foreach_dimension()
+	  pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
     }
 
     foreach_dimension() 
       dlm_bd->bp[k].x = pos.x;
   }
 
-  if ( accountForPeriodicity )
-    if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
+  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
   	pPeriodicRefCenter->y, pPeriodicRefCenter->z});
 }
 
+
+
+
+/** Creates boundary points and normal vectors of the reference sphere */
+//----------------------------------------------------------------------------
+void create_referenceRB_boundary_geomfeatures_Sphere( 
+	GeomParameter const* gcp,
+	RigidBodyBoundary* dlm_bd, const int nsphere )
+//----------------------------------------------------------------------------
+{
+  coord pos;
+
+  /* Lay out points on a sphere with a Z oriented spiral scheme */
+  /* This portion of code is recovered from Peligriff and adapted */
+  /* More information of this method can be found at: */
+  /* Saff, E. & Kuijlaars, A. Distributing many points on a sphere The
+     Mathematical Intelligencer, 1997 */
+
+  double delta = L0 / (double)(1 << MAXLEVEL) ;  
+  double spiral_spacing_correction = INTERBPCOEF * delta / sqrt(3.) ;
+  double hydro_radius = gcp->radius;
+  size_t k;
+
+  /* Number of points */
+  size_t NSpiral = nsphere;
+
+  /* Spiral points construction */
+  double hk, thetak, phik, phikm1 = 0., TwoPi = 2. * pi,
+    Cspiral = 3.6 / sqrt( NSpiral ), dphi = 0.;
+
+  for (k = 0; k < NSpiral; ++k)
+  {
+    hk = - 1. + 2. * (double)(k) / ( NSpiral - 1. );
+    thetak = acos( hk ) ;
+    if ( k == 0 )
+    {
+      phik = 0.;
+      thetak = pi - 0.5 * spiral_spacing_correction / hydro_radius ;
+    }
+    else if ( k == NSpiral - 1 )
+    {
+      phik = phikm1 + 1. * dphi;
+      if ( phik > TwoPi ) phik -= TwoPi ;
+      thetak = 0.5 * spiral_spacing_correction / hydro_radius ;
+    }
+    else
+    {
+      dphi = Cspiral / sqrt( 1. - hk * hk ) ;
+      phik = phikm1 + dphi ;
+      if ( phik > TwoPi ) phik -= TwoPi ;
+    }
+
+    phikm1 = phik ;
+
+    if ( k == 1 ) thetak -= 0.4 * spiral_spacing_correction / hydro_radius ;
+
+    if ( k == NSpiral - 2 )
+    {
+      phik -= 0.1 * dphi ;
+      thetak += 0.25 * spiral_spacing_correction / hydro_radius ;
+    }
+
+    pos.x = hydro_radius * cos( phik ) * sin( thetak );
+    pos.y = hydro_radius * sin( phik ) * sin( thetak );
+    pos.z = hydro_radius * cos( thetak );
+
+    foreach_dimension() 
+      dlm_bd->bp[k].x = pos.x;
+  }
+}
 
 
 
@@ -231,7 +296,7 @@ void create_FD_Interior_Sphere( RigidBody* p, vector Index,
 
 /** Reads geometric parameters of the sphere */
 //----------------------------------------------------------------------------
-void update_Sphere( GeomParameter* gcp )
+void update_Sphere( GeomParameter* gcp, const double RotMat[3][3] )
 //----------------------------------------------------------------------------
 {
   // We already have all parameters for the sphere but the input array of
@@ -239,7 +304,18 @@ void update_Sphere( GeomParameter* gcp )
   // a "0", hence we need to read five tokens but we do not do
   // anything with them
   for (size_t i=0;i<5;++i)
-    strtok( NULL, " " );
+    strtok( NULL, " " );      
+}
+
+
+
+
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_Sphere_from_RBRef( GeomParameter* gcp, RigidBody const* RBRef )
+//----------------------------------------------------------------------------
+{
+  // Nothing to do  
 }
 
 

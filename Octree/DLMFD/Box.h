@@ -138,12 +138,11 @@ void create_FD_Boundary_Box( GeomParameter const* gcp,
   for (int i = 0; i < nfaces; i++)
   {
     npoints = gcp->pgp->numPointsOnFaces[i];
-    i1 = gcp->pgp->cornersIndex[i][1];
 
-    for (int j = 1; j < npoints; j++)
+    for (int j = 0; j < npoints; j++)
     {
-      jm1 = gcp->pgp->cornersIndex[i][j-1];
-      j1 = gcp->pgp->cornersIndex[i][j];
+      jm1 = gcp->pgp->cornersIndex[i][j];
+      j1 = gcp->pgp->cornersIndex[i][(j+1) % npoints];
 
       if ( jm1 > j1 )
       {
@@ -206,9 +205,141 @@ void create_FD_Boundary_Box( GeomParameter const* gcp,
 
 
 
+/** Creates boundary points and normal vectors of the reference box */
+//----------------------------------------------------------------------------
+void create_referenceRB_boundary_geomfeatures_Box( GeomParameter const* gcp,
+	RigidBodyBoundary* dlm_bd, const int m )
+//----------------------------------------------------------------------------
+{
+  int nfaces = gcp->pgp->allFaces;
+  int iref, i1, i2, ichoice = 0, isb = 0, npoints, ndir1, ndir2;
+  coord pos;
+  double delta = L0 / (double)(1 << MAXLEVEL) ;    
+
+  /* Add first interior points on surfaces */
+  for (int i = 0; i < nfaces; i++)
+  {
+    npoints = gcp->pgp->numPointsOnFaces[i];
+
+    iref = gcp->pgp->cornersIndex[i][ichoice];
+    i1 = gcp->pgp->cornersIndex[i][ichoice + 1];
+    i2 = gcp->pgp->cornersIndex[i][npoints-1];
+
+    coord refcorner = {gcp->pgp->cornersCoord[iref][0],
+    	gcp->pgp->cornersCoord[iref][1],
+    	gcp->pgp->cornersCoord[iref][2]} ;
+
+    coord dir1 = {gcp->pgp->cornersCoord[i1][0],
+    	gcp->pgp->cornersCoord[i1][1],
+    	gcp->pgp->cornersCoord[i1][2]};
+
+    coord dir2 = {gcp->pgp->cornersCoord[i2][0],
+    	gcp->pgp->cornersCoord[i2][1],
+    	gcp->pgp->cornersCoord[i2][2]};
+
+    foreach_dimension()
+    {
+      dir1.x -= refcorner.x;
+      dir2.x -= refcorner.x;
+    }
+    
+    ndir1 = floor( sqrt( sq( dir1.x ) + sq( dir1.y ) + sq( dir1.z ) ) 
+    	/ ( INTERBPCOEF * delta ) );
+    ndir2 = floor( sqrt( sq( dir2.x ) + sq( dir2.y ) + sq( dir2.z ) ) 
+    	/ ( INTERBPCOEF * delta ) );
+
+    foreach_dimension()
+    {
+      dir1.x /= ndir1;
+      dir2.x /= ndir2;
+    }
+    
+    for (int ii = 1; ii <= ndir1-1; ii++)
+    {
+      for (int jj = 1; jj <= ndir2-1; jj++)
+      {
+        pos.x = refcorner.x + (double) ii * dir1.x
+      		+ (double) jj * dir2.x;
+        pos.y = refcorner.y + (double) ii * dir1.y
+      		+ (double) jj * dir2.y;
+        pos.z = refcorner.z + (double) ii * dir1.z
+      		+ (double) jj * dir2.z;
+
+        foreach_dimension()
+	  dlm_bd->bp[isb].x = pos.x;
+
+      	isb++;
+      }
+    }
+  }
+
+  // We have 8 corner points for the box
+  int allindextable[8][8] = {{0}};
+  int j1,jm1;
+
+  /* Add points on the edges without the corners */
+  for (int i = 0; i < nfaces; i++)
+  {
+    npoints = gcp->pgp->numPointsOnFaces[i];
+
+    for (int j = 0; j < npoints; j++)
+    {
+      jm1 = gcp->pgp->cornersIndex[i][j];
+      j1 = gcp->pgp->cornersIndex[i][(j+1) % npoints];
+
+      if ( jm1 > j1 )
+      {
+	if ( allindextable[jm1][j1] == 0 )
+	{
+	  coord c1 = {gcp->pgp->cornersCoord[jm1][0],
+	  	gcp->pgp->cornersCoord[jm1][1],
+	  	gcp->pgp->cornersCoord[jm1][2]};
+	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
+	  	gcp->pgp->cornersCoord[j1][1],
+	  	gcp->pgp->cornersCoord[j1][2]};
+          ndir1 = floor( sqrt( sq( c1.x - c2.x ) + sq( c1.y - c2.y )
+	  	+ sq( c1.z - c2.z ) ) / ( INTERBPCOEF * delta ) ) + 1;
+	  distribute_points_edge2( gcp, c1, c2, dlm_bd, ndir1, isb );
+	  allindextable[jm1][j1] = 1;
+	  isb += ndir1 - 2;
+	}
+      }
+      else
+      {
+	if ( allindextable[j1][jm1] == 0 )
+	{
+	  coord c1 = {gcp->pgp->cornersCoord[j1][0],
+	  	gcp->pgp->cornersCoord[j1][1],
+	  	gcp->pgp->cornersCoord[j1][2]};
+	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
+	  	gcp->pgp->cornersCoord[jm1][1],
+	  	gcp->pgp->cornersCoord[jm1][2]};
+          ndir1 = floor( sqrt( sq( c1.x - c2.x ) + sq( c1.y - c2.y )
+	  	+ sq( c1.z - c2.z ) ) / ( INTERBPCOEF * delta ) ) + 1;		
+	  distribute_points_edge2( gcp, c1, c2, dlm_bd, ndir1, isb );
+	  allindextable[j1][jm1] = 1;
+	  isb += ndir1 - 2;
+	}
+      }
+    }
+  }
+
+  /* Add the final 8 corners points */
+  for (int i = 0; i  < gcp->ncorners; i++)
+  {
+    dlm_bd->bp[isb].x = gcp->pgp->cornersCoord[i][0];
+    dlm_bd->bp[isb].y = gcp->pgp->cornersCoord[i][1];
+    dlm_bd->bp[isb].z = gcp->pgp->cornersCoord[i][2];
+    isb++;
+  } 
+}
+
+
+
+
 /** Reads geometric parameters of the box */
 //----------------------------------------------------------------------------
-void update_Box( GeomParameter* gcp )
+void update_Box( GeomParameter* gcp, const double RotMat[3][3] )
 //----------------------------------------------------------------------------
 {
   char* token = NULL;
@@ -272,6 +403,78 @@ void update_Box( GeomParameter* gcp )
       sscanf( token, "%ld", &(gcp->pgp->cornersIndex[i][j]));
     }
   }
+  
+  
+  // In case the reference rigid body was sent by the granular solver with 
+  // a non zero center of mass and/or a non-zero identity angular position
+  // we need to reset all corners to the neutral reference position
+  double v[3];
+  for (size_t i=0;i<nc;++i)
+  {
+    // Translation    
+    v[0] = gcp->pgp->cornersCoord[i][0] - gcp->center.x;
+    v[1] = gcp->pgp->cornersCoord[i][1] - gcp->center.y;
+    v[2] = gcp->pgp->cornersCoord[i][2] - gcp->center.z;
+
+    // Rotation
+    matTransposedVecDotProduct( RotMat, v, gcp->pgp->cornersCoord[i] );
+  }  
+}
+
+
+
+
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_Box_from_RBRef( GeomParameter* gcp, RigidBody const* RBRef,
+	const double RotMat[3][3] )
+//----------------------------------------------------------------------------
+{
+  size_t nc = RBRef->g.pgp->allPoints;
+  size_t nf = RBRef->g.pgp->allFaces; 
+
+  // Allocate the PolyGeomParameter structure
+  gcp->pgp = (PolyGeomParameter*) malloc( sizeof(PolyGeomParameter) );
+  gcp->pgp->allPoints = nc;
+
+  // Allocate the array of corner coordinates
+  gcp->pgp->cornersCoord = (double**) malloc( nc * sizeof(double*) );
+  for (size_t i=0;i<nc;i++)
+    gcp->pgp->cornersCoord[i] = (double*) malloc( 3 * sizeof(double) );
+
+  // Compute the point/corner coordinates
+  for (size_t i=0;i<nc;++i)
+  {
+    // Rotation
+    matVecDotProduct( RotMat, RBRef->g.pgp->cornersCoord[i], 
+    	gcp->pgp->cornersCoord[i] );	
+    // Translation
+    gcp->pgp->cornersCoord[i][0] += gcp->center.x;
+    gcp->pgp->cornersCoord[i][1] += gcp->center.y;
+    gcp->pgp->cornersCoord[i][2] += gcp->center.z;     
+  }
+
+  // Allocate the array of number of points/corners on each face
+  gcp->pgp->allFaces = nf;
+  gcp->pgp->numPointsOnFaces = (long int*) malloc( nf * sizeof(long int) );
+
+  // Allocate the array of point/corner indices on each face
+  gcp->pgp->cornersIndex = (long int**) malloc( nf * sizeof(long int*) );
+  
+  // Assign the face indices
+  long int nppf = 4;
+  for (size_t i=0;i<nf;++i)
+  {
+    // Number of points/corners on the face
+    gcp->pgp->numPointsOnFaces[i] = nppf;
+    
+    // Allocate the point/corner index vector on the face
+    gcp->pgp->cornersIndex[i] = (long int*) malloc( nppf * sizeof(long int) );
+    
+    // Point/corner indices
+    for (size_t j=0;j<4;++j)
+      gcp->pgp->cornersIndex[i][j] = RBRef->g.pgp->cornersIndex[i][j];    
+  }  
 }
 
 
