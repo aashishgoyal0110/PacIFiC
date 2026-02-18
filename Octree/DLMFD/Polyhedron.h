@@ -42,39 +42,6 @@ void periodic_correction( GeomParameter const* gcp, coord* pos,
 //----------------------------------------------------------------------------
 void distribute_points_edge( GeomParameter const* gcp, coord const corner1, 
 	coord const corner2, RigidBodyBoundary* dlm_bd, int const lN, 
-	int const istart, vector* pPeriodicRefCenter, 
-	const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  if ( lN > 0 )
-  {
-    coord dinc;
-    coord pos;
-
-    foreach_dimension()
-      dinc.x = (corner2.x - corner1.x)/(lN-1);
-
-    for (int i = 1; i <= lN-2; i++)
-    {
-      foreach_dimension()
-        pos.x = corner1.x + (double)i * dinc.x;
-
-      periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-      	setPeriodicRefCenter );
-      
-      foreach_dimension()
-        dlm_bd->bp[istart + i -1].x = pos.x;
-    }
-  }
-}
-
-
-
-
-/** Distributes points over an edge of the polyhedron */
-//----------------------------------------------------------------------------
-void distribute_points_edge2( GeomParameter const* gcp, coord const corner1, 
-	coord const corner2, RigidBodyBoundary* dlm_bd, int const lN, 
 	int const istart )
 //----------------------------------------------------------------------------
 {
@@ -297,4 +264,100 @@ void create_FD_Interior_Polyhedron( RigidBody* p, vector Index,
       }
 
   cache_shrink( fd );
+}
+
+
+
+
+/** Update geometric parameters with the reference rigid body */
+//----------------------------------------------------------------------------
+void update_Polyhedron_from_RBRef( GeomParameter* gcp, RigidBody const* RBRef,
+	const double RotMat[3][3] )
+//----------------------------------------------------------------------------
+{
+  size_t nc = RBRef->g.pgp->allPoints;
+  size_t nf = RBRef->g.pgp->allFaces; 
+
+  // Allocate the PolyGeomParameter structure
+  gcp->pgp = (PolyGeomParameter*) malloc( sizeof(PolyGeomParameter) );
+  gcp->pgp->allPoints = nc;
+
+  // Allocate the array of corner coordinates
+  gcp->pgp->cornersCoord = (double**) malloc( nc * sizeof(double*) );
+  for (size_t i=0;i<nc;i++)
+    gcp->pgp->cornersCoord[i] = (double*) malloc( 3 * sizeof(double) );
+
+  // Compute the point/corner coordinates
+  for (size_t i=0;i<nc;++i)
+  {
+    // Rotation
+    matVecDotProduct( RotMat, RBRef->g.pgp->cornersCoord[i], 
+    	gcp->pgp->cornersCoord[i] );	
+    // Translation
+    gcp->pgp->cornersCoord[i][0] += gcp->center.x;
+    gcp->pgp->cornersCoord[i][1] += gcp->center.y;
+    gcp->pgp->cornersCoord[i][2] += gcp->center.z;     
+  }
+
+  // Allocate the array of number of points/corners on each face
+  gcp->pgp->allFaces = nf;
+  gcp->pgp->numPointsOnFaces = (long int*) malloc( nf * sizeof(long int) );
+
+  // Allocate the array of point/corner indices on each face
+  gcp->pgp->cornersIndex = (long int**) malloc( nf * sizeof(long int*) );
+  
+  // Assign the face indices
+  long int nppf;
+  for (size_t i=0;i<nf;++i)
+  {
+    // Number of points/corners on the face
+    nppf = RBRef->g.pgp->numPointsOnFaces[i];
+    gcp->pgp->numPointsOnFaces[i] = nppf;
+    
+    // Allocate the point/corner index vector on the face
+    gcp->pgp->cornersIndex[i] = (long int*) malloc( nppf * sizeof(long int) );
+    
+    // Point/corner indices
+    for (size_t j=0;j<nppf;++j)
+      gcp->pgp->cornersIndex[i][j] = RBRef->g.pgp->cornersIndex[i][j];    
+  }
+}
+
+
+
+
+/** Frees the geometric parameters of the polyhedron */
+//----------------------------------------------------------------------------
+void free_Polyhedron( GeomParameter* gcp )
+//----------------------------------------------------------------------------
+{
+  // Free the point/corner coordinate array
+  double* cc = NULL;
+  for (size_t i=0;i<gcp->pgp->allPoints;++i)
+  {
+    cc = &(gcp->pgp->cornersCoord[i][0]);
+    free( cc );
+    cc = NULL;
+  }
+  free( gcp->pgp->cornersCoord );
+  gcp->pgp->cornersCoord = NULL;
+  gcp->pgp->allPoints = 0;
+
+  // Free the point/corner arrays
+  long int* in = NULL;
+  for (size_t i=0;i<gcp->pgp->allFaces;++i)
+  {
+    in = &(gcp->pgp->cornersIndex[i][0]);
+    free( in );
+    in = NULL;
+  }
+  free( gcp->pgp->cornersIndex );
+  gcp->pgp->cornersIndex = NULL;
+  free( gcp->pgp->numPointsOnFaces );
+  gcp->pgp->numPointsOnFaces = NULL;
+  gcp->pgp->allFaces = 0;
+
+  // Free the PolyGeomParameter structure
+  free( gcp->pgp );
+  gcp->pgp = NULL;
 }

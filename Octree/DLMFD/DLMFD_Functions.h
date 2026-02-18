@@ -672,27 +672,27 @@ void free_rigidbodies( RigidBody* allrbs, const size_t nrb, bool full_free )
 	  break;
 	  
         case CUBE:
-          free_Cube( &(allrbs[k].g) );
+          free_Polyhedron( &(allrbs[k].g) );
 	  break;
 
         case TETRAHEDRON:
-          free_Tetrahedron( &(allrbs[k].g) );
+          free_Polyhedron( &(allrbs[k].g) );
 	  break;
 	
         case OCTAHEDRON:
-	  free_Octahedron( &(allrbs[k].g) );
+	  free_Polyhedron( &(allrbs[k].g) );
 	  break;
 	
         case ICOSAHEDRON:
-	  free_Icosahedron( &(allrbs[k].g) );
+	  free_Polyhedron( &(allrbs[k].g) );
 	  break;
 
         case DODECAHEDRON:
-	  free_Dodecahedron( &(allrbs[k].g) );
+	  free_Polyhedron( &(allrbs[k].g) );
 	  break;
 	  
         case BOX:
-	  free_Box( &(allrbs[k].g) );
+	  free_Polyhedron( &(allrbs[k].g) );
 	  break;
 	  
         case CIRCULARCYLINDER3D:

@@ -41,170 +41,6 @@ void compute_nboundary_Dodecahedron( GeomParameter const* gcp, int* nb,
 
 
 
-/** Creates boundary points on the surface of the dodecahedron */
-//----------------------------------------------------------------------------
-void create_FD_Boundary_Dodecahedron( GeomParameter const* gcp,
-	RigidBodyBoundary* dlm_bd, const int m, const int lN, 
-	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  int nfaces = gcp->pgp->allFaces;
-  int iref, i1, i2, isb = 0, npoints;
-  double orig_x, orig_y, orig_z;
-  coord pos;
-
-  /* Add first interior points on surfaces */
-  for (int i = 0; i < nfaces; i++)
-  {
-    npoints = gcp->pgp->numPointsOnFaces[i];
-    orig_x = 0.;
-    orig_y = 0.;
-    orig_z = 0.;
-
-    for (int j = 0; j < npoints; j++)
-    {
-      iref = gcp->pgp->cornersIndex[i][j];
-      orig_x += gcp->pgp->cornersCoord[iref][0] / npoints;
-      orig_y += gcp->pgp->cornersCoord[iref][1] / npoints;
-      orig_z += gcp->pgp->cornersCoord[iref][2] / npoints;
-    }
-
-    coord refcorner = { orig_x, orig_y, orig_z } ;
-
-    // Add central points on each surface of the Dodecahedron (12 points)
-    foreach_dimension()
-      pos.x = refcorner.x;
-    
-    periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-    	setPeriodicRefCenter );
-
-    foreach_dimension()
-      dlm_bd->bp[isb].x = pos.x;
-
-    isb++;
-
-    for (int k = 0; k < npoints; k++)
-    {
-      i1 = gcp->pgp->cornersIndex[i][k];
-
-      if ( k == npoints - 1 )
-        i2 = gcp->pgp->cornersIndex[i][0];
-      else
-        i2 = gcp->pgp->cornersIndex[i][k+1];
-
-      coord dir1 = {gcp->pgp->cornersCoord[i1][0],
-    		gcp->pgp->cornersCoord[i1][1],
-    		gcp->pgp->cornersCoord[i1][2]};
-
-      coord dir2 = {gcp->pgp->cornersCoord[i2][0],
-   	 	gcp->pgp->cornersCoord[i2][1],
-   	 	gcp->pgp->cornersCoord[i2][2]};
-
-      // Insert points on the innerface edges
-      distribute_points_edge( gcp, refcorner, dir1, dlm_bd, lN, 
-      	isb, pPeriodicRefCenter, setPeriodicRefCenter );
-      isb += lN - 2;
-
-      foreach_dimension()
-      {
-        dir1.x -= refcorner.x;
-        dir2.x -= refcorner.x;
-        dir1.x /= ( lN - 1 );
-        dir2.x /= ( lN - 1 );
-      }
-
-      for (int ii = 1; ii <= lN-2; ii++)
-      {
-        for (int jj = 1; jj <= lN-2 - ii; jj++)
-        {
-          foreach_dimension()
-	    pos.x = refcorner.x + (double) ii * dir1.x
-		+ (double) jj * dir2.x;
-
-          periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-    		setPeriodicRefCenter );
-
-          foreach_dimension()
-	    dlm_bd->bp[isb].x = pos.x;
-
-          isb++;
-        }
-      }
-    }
-  }
-
-  // We have 20 corner points for dodecahedron
-  int allindextable[20][20] = {{0}};
-  int j1, jm1;
-
-  /* Add points on the edges without the corners */
-  for (int i = 0; i < nfaces; i++)
-  {
-    npoints = gcp->pgp->numPointsOnFaces[i];
-
-    for (int j = 0; j < npoints; j++)
-    {
-      jm1 = gcp->pgp->cornersIndex[i][j];
-      j1 = gcp->pgp->cornersIndex[i][(j+1) % npoints];
-
-      if ( jm1 > j1 )
-      {
-	if ( allindextable[jm1][j1] == 0 )
-	{
-	  coord c1 = {gcp->pgp->cornersCoord[jm1][0],
-	  	gcp->pgp->cornersCoord[jm1][1],
-	  	gcp->pgp->cornersCoord[jm1][2]};
-	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
-	  	gcp->pgp->cornersCoord[j1][1],
-	  	gcp->pgp->cornersCoord[j1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, 
-	  	pPeriodicRefCenter, setPeriodicRefCenter );
-	  allindextable[jm1][j1] = 1;
-	  isb += lN - 2;
-	}
-      }
-      else
-      {
-	if ( allindextable[j1][jm1] == 0 )
-	{
-	  coord c1 = {gcp->pgp->cornersCoord[j1][0],
-	  	gcp->pgp->cornersCoord[j1][1],
-	  	gcp->pgp->cornersCoord[j1][2]};
-	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
-	  	gcp->pgp->cornersCoord[jm1][1],
-	  	gcp->pgp->cornersCoord[jm1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, 
-	  	pPeriodicRefCenter, setPeriodicRefCenter );
-	  allindextable[j1][jm1] = 1;
-	  isb += lN - 2;
-	}
-      }
-    }
-  }
-
-  /* Add the final 20 corners points */
-  for (int i = 0; i  < gcp->ncorners; i++)
-  {
-    pos.x = gcp->pgp->cornersCoord[i][0];
-    pos.y = gcp->pgp->cornersCoord[i][1];
-    pos.z = gcp->pgp->cornersCoord[i][2];
-    
-    periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-    	setPeriodicRefCenter );
-
-    foreach_dimension()
-      dlm_bd->bp[isb].x = pos.x;
-
-    isb++;
-  }
-  
-  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
-  	pPeriodicRefCenter->y, pPeriodicRefCenter->z});   
-}
-
-
-
-
 /** Creates boundary points and normal vectors of the reference dodecahedron */
 //----------------------------------------------------------------------------
 void create_referenceRB_boundary_geomfeatures_Dodecahedron( 
@@ -262,7 +98,7 @@ void create_referenceRB_boundary_geomfeatures_Dodecahedron(
    	 	gcp->pgp->cornersCoord[i2][2]};
 
       // Insert points on the innerface edges
-      distribute_points_edge2( gcp, refcorner, dir1, dlm_bd, lN, isb );
+      distribute_points_edge( gcp, refcorner, dir1, dlm_bd, lN, isb );
       isb += lN - 2;
 
       foreach_dimension()
@@ -314,7 +150,7 @@ void create_referenceRB_boundary_geomfeatures_Dodecahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
 	  	gcp->pgp->cornersCoord[j1][1],
 	  	gcp->pgp->cornersCoord[j1][2]};
-	  distribute_points_edge2( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
 	  allindextable[jm1][j1] = 1;
 	  isb += lN - 2;
 	}
@@ -329,7 +165,7 @@ void create_referenceRB_boundary_geomfeatures_Dodecahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
 	  	gcp->pgp->cornersCoord[jm1][1],
 	  	gcp->pgp->cornersCoord[jm1][2]};
-	  distribute_points_edge2( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
 	  allindextable[j1][jm1] = 1;
 	  isb += lN - 2;
 	}
@@ -355,7 +191,8 @@ void create_referenceRB_boundary_geomfeatures_Dodecahedron(
 
 /** Reads geometric parameters of the Dodecahedron */
 //----------------------------------------------------------------------------
-void update_Dodecahedron( GeomParameter* gcp, const double RotMat[3][3] )
+void read_reference_Dodecahedron( GeomParameter* gcp, 
+	const double RotMat[3][3] )
 //----------------------------------------------------------------------------
 {
   char* token = NULL;
@@ -435,99 +272,4 @@ void update_Dodecahedron( GeomParameter* gcp, const double RotMat[3][3] )
     // Rotation
     matTransposedVecDotProduct( RotMat, v, gcp->pgp->cornersCoord[i] );
   } 
-}
-
-
-
-
-/** Update geometric parameters with the reference rigid body */
-//----------------------------------------------------------------------------
-void update_Dodecahedron_from_RBRef( GeomParameter* gcp, RigidBody const* RBRef,
-	const double RotMat[3][3] )
-//----------------------------------------------------------------------------
-{
-  size_t nc = RBRef->g.pgp->allPoints;
-  size_t nf = RBRef->g.pgp->allFaces; 
-
-  // Allocate the PolyGeomParameter structure
-  gcp->pgp = (PolyGeomParameter*) malloc( sizeof(PolyGeomParameter) );
-  gcp->pgp->allPoints = nc;
-
-  // Allocate the array of corner coordinates
-  gcp->pgp->cornersCoord = (double**) malloc( nc * sizeof(double*) );
-  for (size_t i=0;i<nc;i++)
-    gcp->pgp->cornersCoord[i] = (double*) malloc( 3 * sizeof(double) );
-
-  // Compute the point/corner coordinates
-  for (size_t i=0;i<nc;++i)
-  {
-    // Rotation
-    matVecDotProduct( RotMat, RBRef->g.pgp->cornersCoord[i], 
-    	gcp->pgp->cornersCoord[i] );	
-    // Translation
-    gcp->pgp->cornersCoord[i][0] += gcp->center.x;
-    gcp->pgp->cornersCoord[i][1] += gcp->center.y;
-    gcp->pgp->cornersCoord[i][2] += gcp->center.z;     
-  }
-
-  // Allocate the array of number of points/corners on each face
-  gcp->pgp->allFaces = nf;
-  gcp->pgp->numPointsOnFaces = (long int*) malloc( nf * sizeof(long int) );
-
-  // Allocate the array of point/corner indices on each face
-  gcp->pgp->cornersIndex = (long int**) malloc( nf * sizeof(long int*) );
-  
-  // Assign the face indices
-  long int nppf = 5;
-  for (size_t i=0;i<nf;++i)
-  {
-    // Number of points/corners on the face
-    gcp->pgp->numPointsOnFaces[i] = nppf;
-    
-    // Allocate the point/corner index vector on the face
-    gcp->pgp->cornersIndex[i] = (long int*) malloc( nppf * sizeof(long int) );
-    
-    // Point/corner indices
-    for (size_t j=0;j<5;++j)
-      gcp->pgp->cornersIndex[i][j] = RBRef->g.pgp->cornersIndex[i][j];    
-  }
-}
-
-
-
-
-/** Frees the geometric parameters of the Dodecahedron */
-//----------------------------------------------------------------------------
-void free_Dodecahedron( GeomParameter* gcp )
-//----------------------------------------------------------------------------
-{
-  // Free the point/corner coordinate array
-  double* cc = NULL;
-  for (int i=0; i < gcp->pgp->allPoints; ++i)
-  {
-    cc = &(gcp->pgp->cornersCoord[i][0]);
-    free( cc );
-    cc = NULL;
-  }
-  free( gcp->pgp->cornersCoord );
-  gcp->pgp->cornersCoord = NULL;
-  gcp->pgp->allPoints = 0;
-
-  // Free the point/corner arrays
-  long int* in = NULL;
-  for (int i=0;i < gcp->pgp->allFaces; ++i)
-  {
-    in = &(gcp->pgp->cornersIndex[i][0]);
-    free( in );
-    in = NULL;
-  }
-  free( gcp->pgp->cornersIndex );
-  gcp->pgp->cornersIndex = NULL;
-  free( gcp->pgp->numPointsOnFaces );
-  gcp->pgp->numPointsOnFaces = NULL;
-  gcp->pgp->allFaces = 0;
-
-  // Free the PolyGeomParameter structure
-  free( gcp->pgp );
-  gcp->pgp = NULL;
 }

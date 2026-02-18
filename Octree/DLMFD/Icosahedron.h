@@ -38,137 +38,6 @@ void compute_nboundary_Icosahedron( GeomParameter const* gcp, int* nb, int* lN )
 
 
 
-/** Creates boundary points on the surface of the icosahedron */
-//----------------------------------------------------------------------------
-void create_FD_Boundary_Icosahedron( GeomParameter const* gcp,
-	RigidBodyBoundary* dlm_bd, const int m, const int lN, 
-	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  int nfaces = gcp->pgp->allFaces;
-  int iref, i1, i2, ichoice = 0, isb = 0,  npoints;
-  coord pos;
-
-  /* Add first interrior points on surfaces */
-  for (int i = 0; i < nfaces; i++)
-  {
-    npoints = gcp->pgp->numPointsOnFaces[i];
-
-    iref = gcp->pgp->cornersIndex[i][ichoice];
-    i1 = gcp->pgp->cornersIndex[i][ichoice + 1];
-    i2 = gcp->pgp->cornersIndex[i][npoints-1];
-
-    coord refcorner = {gcp->pgp->cornersCoord[iref][0],
-    	gcp->pgp->cornersCoord[iref][1],
-    	gcp->pgp->cornersCoord[iref][2]} ;
-
-    coord dir1 = {gcp->pgp->cornersCoord[i1][0],
-    	gcp->pgp->cornersCoord[i1][1],
-    	gcp->pgp->cornersCoord[i1][2]};
-
-    coord dir2 = {gcp->pgp->cornersCoord[i2][0],
-    	gcp->pgp->cornersCoord[i2][1],
-    	gcp->pgp->cornersCoord[i2][2]};
-
-    foreach_dimension()
-    {
-      dir1.x -= refcorner.x;
-      dir2.x -= refcorner.x;
-      dir1.x /= (lN-1);
-      dir2.x /= (lN-1);
-    }
-
-    for (int ii = 1; ii <= lN-2; ii++)
-    {
-      for (int jj = 1; jj <= lN-2 - ii; jj++)
-      {
-        foreach_dimension()
-	  pos.x = refcorner.x + (double) ii * dir1.x
-		+ (double) jj * dir2.x;
-        
-	periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
-
-        foreach_dimension()
-	  dlm_bd->bp[isb].x = pos.x;
-
-        isb++;
-      }
-    }
-  }
-
-
-  // We have 12 corner points for icosahedron
-  int allindextable[12][12] = {{0}};
-  int j1, jm1;
-
-  /* Add points on the edges without the corners */
-  for (int i = 0; i < nfaces; i++)
-  {
-    npoints = gcp->pgp->numPointsOnFaces[i];
-
-    for (int j = 0; j < npoints; j++)
-    {
-      jm1 = gcp->pgp->cornersIndex[i][j];
-      j1 = gcp->pgp->cornersIndex[i][(j+1) % npoints];
-
-      if ( jm1 > j1 )
-      {
-	if ( allindextable[jm1][j1] == 0 )
-	{
-	  coord c1 = {gcp->pgp->cornersCoord[jm1][0],
-	  	gcp->pgp->cornersCoord[jm1][1],
-	  	gcp->pgp->cornersCoord[jm1][2]};
-	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
-	  	gcp->pgp->cornersCoord[j1][1],
-	  	gcp->pgp->cornersCoord[j1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, 
-	  	pPeriodicRefCenter, setPeriodicRefCenter );
-	  allindextable[jm1][j1] = 1;
-	  isb += lN - 2;
-	}
-      }
-      else
-      {
-	if ( allindextable[j1][jm1] == 0 )
-	{
-	  coord c1 = {gcp->pgp->cornersCoord[j1][0],
-	  	gcp->pgp->cornersCoord[j1][1],
-	  	gcp->pgp->cornersCoord[j1][2]};
-	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
-	  	gcp->pgp->cornersCoord[jm1][1],
-	  	gcp->pgp->cornersCoord[jm1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, 
-	  	pPeriodicRefCenter, setPeriodicRefCenter );
-	  allindextable[j1][jm1] = 1;
-	  isb += lN - 2;
-	}
-      }
-    }
-  }
-
-  /* Add the final 12 corners points */
-  for (int i = 0; i  < gcp->ncorners; i++)
-  {
-    pos.x = gcp->pgp->cornersCoord[i][0];
-    pos.y = gcp->pgp->cornersCoord[i][1];
-    pos.z = gcp->pgp->cornersCoord[i][2];
-    
-    periodic_correction( gcp, &pos, pPeriodicRefCenter, setPeriodicRefCenter );
-
-    foreach_dimension()
-      dlm_bd->bp[isb].x = pos.x;
-
-    isb++;
-  }
-  
-  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
-  	pPeriodicRefCenter->y, pPeriodicRefCenter->z});   
-}
-
-
-
-
 /** Creates boundary points and normal vectors of the reference icosahedron */
 //----------------------------------------------------------------------------
 void create_referenceRB_boundary_geomfeatures_Icosahedron( 
@@ -250,7 +119,7 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
 	  	gcp->pgp->cornersCoord[j1][1],
 	  	gcp->pgp->cornersCoord[j1][2]};
-	  distribute_points_edge2( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
 	  allindextable[jm1][j1] = 1;
 	  isb += lN - 2;
 	}
@@ -265,7 +134,7 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
 	  	gcp->pgp->cornersCoord[jm1][1],
 	  	gcp->pgp->cornersCoord[jm1][2]};
-	  distribute_points_edge2( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
 	  allindextable[j1][jm1] = 1;
 	  isb += lN - 2;
 	}
@@ -292,7 +161,7 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 
 // Reads geometric parameters of the Icosahedron
 //----------------------------------------------------------------------------
-void update_Icosahedron( GeomParameter* gcp, const double RotMat[3][3] )
+void read_reference_Icosahedron( GeomParameter* gcp, const double RotMat[3][3] )
 //----------------------------------------------------------------------------
 {
   char* token = NULL;
@@ -372,99 +241,4 @@ void update_Icosahedron( GeomParameter* gcp, const double RotMat[3][3] )
     // Rotation
     matTransposedVecDotProduct( RotMat, v, gcp->pgp->cornersCoord[i] );
   }  
-}
-
-
-
-
-/** Update geometric parameters with the reference rigid body */
-//----------------------------------------------------------------------------
-void update_Icosahedron_from_RBRef( GeomParameter* gcp, RigidBody const* RBRef,
-	const double RotMat[3][3] )
-//----------------------------------------------------------------------------
-{
-  size_t nc = RBRef->g.pgp->allPoints;
-  size_t nf = RBRef->g.pgp->allFaces; 
-
-  // Allocate the PolyGeomParameter structure
-  gcp->pgp = (PolyGeomParameter*) malloc( sizeof(PolyGeomParameter) );
-  gcp->pgp->allPoints = nc;
-
-  // Allocate the array of corner coordinates
-  gcp->pgp->cornersCoord = (double**) malloc( nc * sizeof(double*) );
-  for (size_t i=0;i<nc;i++)
-    gcp->pgp->cornersCoord[i] = (double*) malloc( 3 * sizeof(double) );
-
-  // Compute the point/corner coordinates
-  for (size_t i=0;i<nc;++i)
-  {
-    // Rotation
-    matVecDotProduct( RotMat, RBRef->g.pgp->cornersCoord[i], 
-    	gcp->pgp->cornersCoord[i] );	
-    // Translation
-    gcp->pgp->cornersCoord[i][0] += gcp->center.x;
-    gcp->pgp->cornersCoord[i][1] += gcp->center.y;
-    gcp->pgp->cornersCoord[i][2] += gcp->center.z;     
-  }
-
-  // Allocate the array of number of points/corners on each face
-  gcp->pgp->allFaces = nf;
-  gcp->pgp->numPointsOnFaces = (long int*) malloc( nf * sizeof(long int) );
-
-  // Allocate the array of point/corner indices on each face
-  gcp->pgp->cornersIndex = (long int**) malloc( nf * sizeof(long int*) );
-  
-  // Assign the face indices
-  long int nppf = 3;
-  for (size_t i=0;i<nf;++i)
-  {
-    // Number of points/corners on the face
-    gcp->pgp->numPointsOnFaces[i] = nppf;
-    
-    // Allocate the point/corner index vector on the face
-    gcp->pgp->cornersIndex[i] = (long int*) malloc( nppf * sizeof(long int) );
-    
-    // Point/corner indices
-    for (size_t j=0;j<3;++j)
-      gcp->pgp->cornersIndex[i][j] = RBRef->g.pgp->cornersIndex[i][j];    
-  }
-}
-
-
-
-
-// Frees the geometric parameters of the Icosahedron
-//----------------------------------------------------------------------------
-void free_Icosahedron( GeomParameter* gcp )
-//----------------------------------------------------------------------------
-{
-  // Free the point/corner coordinate array
-  double* cc = NULL;
-  for (int i=0; i < gcp->pgp->allPoints; ++i)
-  {
-    cc = &(gcp->pgp->cornersCoord[i][0]);
-    free( cc );
-    cc = NULL;
-  }
-  free( gcp->pgp->cornersCoord );
-  gcp->pgp->cornersCoord = NULL;
-  gcp->pgp->allPoints = 0;
-
-  // Free the point/corner arrays
-  long int* in = NULL;
-  for (int i=0;i < gcp->pgp->allFaces; ++i)
-  {
-    in = &(gcp->pgp->cornersIndex[i][0]);
-    free( in );
-    in = NULL;
-  }
-  free( gcp->pgp->cornersIndex );
-  gcp->pgp->cornersIndex = NULL;
-  free( gcp->pgp->numPointsOnFaces );
-  gcp->pgp->numPointsOnFaces = NULL;
-  gcp->pgp->allFaces = 0;
-
-  // Free the PolyGeomParameter structure
-  free( gcp->pgp );
-  gcp->pgp = NULL;
 }

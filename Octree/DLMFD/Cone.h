@@ -150,118 +150,6 @@ void compute_nboundary_Cone( GeomParameter const* gcp, int* nb )
 
 
 
-/** Creates boundary points on the surface of the cone */
-//----------------------------------------------------------------------------
-void create_FD_Boundary_Cone( GeomParameter const* gcp,
-	RigidBodyBoundary* dlm_bd, const int nsphere, 
-	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter  ) 
-//----------------------------------------------------------------------------
-{
-  double delta = L0 / (double)(1 << MAXLEVEL) ;
-  double spacing = INTERBPCOEF * delta, local_angle, local_radius,
-  	local_radius_ratio, delta_radius, inclined_height, bin, dangle, 
-	delta_height;
-  int isb = 0;
-  coord pos, unit_axial, n_cross_rad;
-  size_t npts_local_radius, npts_radius, npts_height;
-  
-  foreach_dimension() 
-    unit_axial.x = gcp->tcgp->BottomToTopVec.x / gcp->tcgp->height;  
-  
-  // Bottom center
-  foreach_dimension() pos.x = gcp->tcgp->BottomCenter.x;
-  periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
-  isb++;
-  
-  // Bottom disk in concentric circles
-  n_cross_rad.x = unit_axial.y * gcp->tcgp->BottomRadialRefVec.z 
-  	- unit_axial.z * gcp->tcgp->BottomRadialRefVec.y; 
-  n_cross_rad.y = unit_axial.z * gcp->tcgp->BottomRadialRefVec.x 
-  	- unit_axial.x * gcp->tcgp->BottomRadialRefVec.z;    
-  n_cross_rad.z = unit_axial.x * gcp->tcgp->BottomRadialRefVec.y 
-  	- unit_axial.y * gcp->tcgp->BottomRadialRefVec.x;   
-  npts_radius = (size_t)( gcp->tcgp->BottomRadius / spacing ) + 1 ;
-  delta_radius = gcp->tcgp->BottomRadius 
-  	/ ( (double)(npts_radius) - 1. ) ;
-  for (size_t i=1;i<npts_radius;++i)
-  {
-    local_radius = (double)(i) * delta_radius ;
-    local_radius_ratio = local_radius / gcp->tcgp->BottomRadius ;
-    npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
-      
-    for (size_t j=0;j<npts_local_radius;++j)
-    {      
-      local_angle = 2. * pi * (double)(j) / (double)(npts_local_radius) ;
-      
-      foreach_dimension() 
-        pos.x = local_radius_ratio * ( 
-			cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x
-			+ sin( local_angle ) * n_cross_rad.x );     	
-      
-      foreach_dimension() 
-        pos.x += gcp->tcgp->BottomCenter.x;
-      periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
-      isb++;          
-    }
-  }
-  
-  // Top center
-  foreach_dimension() pos.x = gcp->tcgp->TopCenter.x;
-  periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
-  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
-  isb++;
-
-  // Lateral surface
-  foreach_dimension()
-    pos.x = gcp->tcgp->BottomToTopVec.x - gcp->tcgp->BottomRadialRefVec.x;
-  inclined_height = sqrt( sq( pos.x ) + sq( pos.y ) + sq( pos.z ) );
-  npts_height = (size_t)( 2. * inclined_height / ( sqrt(3.) * spacing ) )
-  	+ 1;
-  delta_height = gcp->tcgp->height / ( (double)(npts_height) - 1. ) ;	
-  for (size_t i=1;i<npts_height-1;++i)
-  {
-    local_radius = - gcp->tcgp->BottomRadius
-    	* (double)(i) * delta_height / gcp->tcgp->height 
-	+ gcp->tcgp->BottomRadius;
-    npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
-    dangle = pi / (double)(npts_local_radius);
-     
-    // odd or even
-    if ( i % 2 == 0 ) bin = 0.;
-    else bin = 1.;
-    
-    for (size_t j=0;j<npts_local_radius;++j)
-    {
-      local_angle = ( 2. * (double)(j) + bin ) * dangle ;      
-      
-      foreach_dimension() 
-        pos.x = cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x 
-		* local_radius / gcp->tcgp->BottomRadius 
-      		+ sin( local_angle ) * n_cross_rad.x * local_radius 
-			/ gcp->tcgp->BottomRadius
-		+ (double)(i) * delta_height * unit_axial.x
-		+ gcp->tcgp->BottomCenter.x;                
-
-      periodic_correction( gcp, &pos, pPeriodicRefCenter, 
-		setPeriodicRefCenter );
-		
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
-      isb++;
-    }         		    	
-  }           
-  
-  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
-  	pPeriodicRefCenter->y, pPeriodicRefCenter->z});      
-}
-
-
-
-
 /** Creates boundary points and normal vectors of the reference cone */
 //----------------------------------------------------------------------------
 void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
@@ -389,7 +277,7 @@ void create_FD_Interior_Cone( RigidBody* p, vector Index,
 
 /** Reads geometric parameters of the cone */
 //----------------------------------------------------------------------------
-void update_Cone( GeomParameter* gcp, const double RotMat[3][3] ) 
+void read_reference_Cone( GeomParameter* gcp, const double RotMat[3][3] ) 
 //----------------------------------------------------------------------------
 {    
   char* token = NULL;

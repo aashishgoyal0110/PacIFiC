@@ -94,71 +94,6 @@ void compute_nboundary_CircularCylinder2D( GeomParameter const* gcp, int* nb )
 
 
 
-/** Creates boundary points on the surface of the 2D circular cylinder */
-//----------------------------------------------------------------------------
-void create_FD_Boundary_CircularCylinder2D( GeomParameter const* gcp,
-	RigidBodyBoundary* dlm_bd, const int nsphere, 
-	vector* pPeriodicRefCenter, const bool setPeriodicRefCenter  ) 
-//----------------------------------------------------------------------------
-{
-  int m = nsphere;
-  coord pos; pos.z = 0.;  
-  coord shift = {0., 0., 0.};
-  coord ori = {X0, Y0, 0.};
- 
-  int i;
-  double theta[m];
-  double radius = gcp->radius;
-  coord fact_theta[m];
-  
-  for (i = 0; i < m; i++) 
-  {
-    theta[i] = (double)(i) * 2. * pi / (double)(m); 
-    fact_theta[i].x = cos( theta[i] );
-    fact_theta[i].y = sin( theta[i] );
-    
-    /* Assign positions x, y on the circular cylinder boundary */ 
-    pos.x = radius * fact_theta[i].x + gcp->center.x;
-    pos.y = radius * fact_theta[i].y + gcp->center.y;
-
-    /* Check if the point falls outside of the domain */    
-    foreach_dimension()
-    {
-      shift.x = 0.;      
-      if ( Period.x )
-      {
-	if ( pos.x > L0 + ori.x )
-	{  
-	  pos.x -= L0;
-	  shift.x = - L0;
-	}
-        else if ( pos.x < 0. + ori.x )
-	{
-	  pos.x += L0;
-	  shift.x = L0;
-	}
-      }
-    }
-   
-    if ( setPeriodicRefCenter )
-    {
-      // Setting the periodic clone center vector field
-      foreach_point( pos.x, pos.y )
-        foreach_dimension()
-	  pPeriodicRefCenter->x[] = gcp->center.x + shift.x;
-    }
-
-    dlm_bd->bp[i].x = pos.x;
-    dlm_bd->bp[i].y = pos.y;
-  }
-
-  if ( setPeriodicRefCenter ) synchronize((scalar*){pPeriodicRefCenter->x,
-  	pPeriodicRefCenter->y});
-}
-
-
-
-
 /** Creates boundary points and normal vectors of the 2D circular cylinder */
 //----------------------------------------------------------------------------
 void create_referenceRB_boundary_geomfeatures_CircularCylinder2D( 
@@ -211,7 +146,8 @@ void create_FD_Interior_CircularCylinder2D( RigidBody* p, vector Index,
 
 /** Reads geometric parameters of the 2D circular cylinder */
 //----------------------------------------------------------------------------
-void update_CircularCylinder2D( GeomParameter* gcp, const double RotMat[3][3] ) 
+void read_reference_CircularCylinder2D( GeomParameter* gcp, 
+	const double RotMat[3][3] ) 
 //----------------------------------------------------------------------------
 {    
   // TO DO

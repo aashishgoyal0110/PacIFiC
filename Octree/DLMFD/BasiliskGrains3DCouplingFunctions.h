@@ -435,27 +435,27 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
         break;
 
       case TETRAHEDRON: 
-	update_Tetrahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;
 	  
       case CUBE: 
-	update_Cube_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;
 	
       case OCTAHEDRON: 
-	update_Octahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;	
 	  
       case ICOSAHEDRON: 
-	update_Icosahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;  
           
       case DODECAHEDRON: 
-	update_Dodecahedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;
 	 
       case BOX: 
-	update_Box_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+	update_Polyhedron_from_RBRef( gg, RBRef, allrbs[k].RotMat );
         break;	
 	 
       case CIRCULARCYLINDER3D: 
@@ -722,74 +722,74 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
 #     if dimension == 3
         case 1: 
           allrefrbs[k].shape = SPHERE;
-	  update_Sphere( gg, allrefrbs[k].RotMat ); 
+	  read_reference_Sphere( gg, allrefrbs[k].RotMat ); 
           break;
 
         // For now, we assume that all 4-corner polyhedrons are regular 
 	// tetrahedrons
 	case 4: 
           allrefrbs[k].shape = TETRAHEDRON;
-	  update_Tetrahedron( gg, allrefrbs[k].RotMat );
+	  read_reference_Tetrahedron( gg, allrefrbs[k].RotMat );
           break;
 	  
         // For now, we assume that all 6-corner polyhedrons are regular 
 	// octahedrons
 	case 6: 
           allrefrbs[k].shape = OCTAHEDRON;
-	  update_Octahedron( gg, allrefrbs[k].RotMat );
+	  read_reference_Octahedron( gg, allrefrbs[k].RotMat );
           break;	  
 	  
         // For now, we assume that all 8-corner polyhedrons are cubes
 	case 8: 
           allrefrbs[k].shape = CUBE;
-	  update_Cube( gg, allrefrbs[k].RotMat );
+	  read_reference_Cube( gg, allrefrbs[k].RotMat );
           break;
 	  
         // For now, we assume that all 12-corner polyhedrons are regular 
 	// icosahedrons
         case 12: 
          allrefrbs[k].shape = ICOSAHEDRON;
-	 update_Icosahedron( gg, allrefrbs[k].RotMat );
+	 read_reference_Icosahedron( gg, allrefrbs[k].RotMat );
          break;  
           
         // For now, we assume that all 20-corner polyhedrons are regular 
 	// dodecahedrons
         case 20: 
           allrefrbs[k].shape = DODECAHEDRON;
-	  update_Dodecahedron( gg, allrefrbs[k].RotMat );
+	  read_reference_Dodecahedron( gg, allrefrbs[k].RotMat );
           break;
 	 
         case 666: 
           allrefrbs[k].shape = BOX;
-	  update_Box( gg, allrefrbs[k].RotMat );
+	  read_reference_Box( gg, allrefrbs[k].RotMat );
           break;	
 	 
         case 777: 
           allrefrbs[k].shape = CIRCULARCYLINDER3D;
-	  update_CircularCylinder3D( gg, allrefrbs[k].RotMat );
+	  read_reference_CircularCylinder3D( gg, allrefrbs[k].RotMat );
           break;
 
         case 888: 
           allrefrbs[k].shape = CONE;
-	  update_Cone( gg, allrefrbs[k].RotMat );
+	  read_reference_Cone( gg, allrefrbs[k].RotMat );
           break;
 	 
         case 8888: 
           allrefrbs[k].shape = TRUNCATEDCONE;
-	  update_TruncatedCone( gg, allrefrbs[k].RotMat );
+	  read_reference_TruncatedCone( gg, allrefrbs[k].RotMat );
           break;	 	        	  
 #     else
         case 1: 
           allrefrbs[k].shape = CIRCULARCYLINDER2D;
-	  update_CircularCylinder2D( gg, allrefrbs[k].RotMat );
+	  read_reference_CircularCylinder2D( gg, allrefrbs[k].RotMat );
           break;
 #     endif	  	  
 	        
       default:
-        fprintf( stderr, "Unknown ncorners in UpdateParticlesBasilisk!!\n" );
+        fprintf( stderr, "Unknown ncorners in CreateReferenceRBBasilisk!!\n" );
     }
     
-    // Once we define all rigid bodies in their neutral angular position and
+    // Once we defined all rigid bodies in their neutral angular position and
     // centered at the origin, we reset the center of mass position and rotation
     // matrix to identity
     foreach_dimension() gg->center.x = 0.;
