@@ -1156,42 +1156,15 @@ multiplier stencil and the foreach_neighbor() loops on the neighbors of the
 non-ghost cells in a 5^dim stencil. */
 //----------------------------------------------------------------------------
 double reversed_weight( RigidBody* pp, const coord weightcellpos, 
-	const coord lambdacellpos, const coord lambdapos, const double delta ) 
+	const coord lambdacellpos, const coord lambdapos, const double delta,
+	const int CX, const int NCX ) 
 //----------------------------------------------------------------------------
 {
-  coord rel = {0, 0, 0};
-  coord relnl = {0, 0, 0};
-  int NCX = 0, CX = 0, weight_id = 0;
+  coord relnl;
+  int weight_id = 0;
   size_t goflag = 0;
   double weight = 0.;
-  GeomParameter const* gcp = &(pp->g); 
-  
-  /* Compute relative vector from the cell (containning the boundary) position 
-  to the boundary's (analytical) position */
-  foreach_dimension() rel.x = lambdapos.x - lambdacellpos.x;
-
-  /* In a periodic case, the position of the Lagrange multipliers on the
-  boundary are those of the master rigid body, i.e., they are not shifted for
-  each periodic clone. Therefore we may have a case where the cell and the
-  position of the Lagrange multiplier are on opposite side of the domain. The
-  solution is to subtract the periodic domain length L0 when this happens */
-  foreach_dimension()
-  {
-    if ( rel.x > L0/2. ) rel.x = rel.x - L0;
-    else if ( rel.x < -L0/2. ) rel.x = rel.x + L0;
-  }  
-
-  /* Reset dial integers */
-  NCX = 0; CX = 0; weight_id = 0; goflag = 0;
-
-  /* Assign quadrant number CX defining relative position of the Lagrange point 
-  with respect to the center of the cell it belongs to */ 
-  assign_dial( rel, &CX );
-
-  /* Assign quadrant number NCX given by the direction of the normal over 
-  the geometric boundary of the rigid body */ 
-  assign_dial_fd_boundary( pp, lambdapos, gcp, delta, &NCX );
-  
+	
   /* Compute relative vector from the cell to the cell that contains the 
   Lagrange multiplier */
   foreach_dimension() relnl.x = lambdacellpos.x - weightcellpos.x;  
@@ -1204,7 +1177,7 @@ double reversed_weight( RigidBody* pp, const coord weightcellpos,
   Otherwise return 0 */
   if ( goflag == 1 ) 
     weight = compute_weight_Quad( weight_id, lambdapos, lambdacellpos, 
-    	NCX, CX, delta );
+    	NCX, CX, delta );	
   
   return ( weight );
 }
@@ -1398,8 +1371,8 @@ void deactivate_critical_boundary_points( RigidBody* allrbs, const size_t nrb,
 point of the rigid body boundary. */
 //----------------------------------------------------------------------------
 void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb, 
-	size_t const* rbnumToIndex,scalar Flag, const vector Index, 
-	const int cacheflag ) 
+	size_t const* rbnumToIndex, scalar Flag, vector CX_NCX, 
+	const vector Index ) 
 //----------------------------------------------------------------------------
 {
   coord rel = {0., 0., 0.};
@@ -1412,6 +1385,57 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
   coord localcellpos = {0., 0., 0.}; 
   GeomParameter const* gcp = NULL;
 
+
+  // Assign values to CX_NCX 
+  foreach_level(MAXLEVEL,serial) 
+    if ( (int)Index.x[] > -1 )
+    {
+      bpnum = (int)Index.x[];
+      pindex = rbnumToIndex[(int)Index.y[]];
+      gcp = &(allrbs[pindex].g);        
+      lambdacellpos.x = x;
+      lambdacellpos.y = y;
+      lambdapos.x = allrbs[pindex].s.bp[bpnum].x;
+      lambdapos.y = allrbs[pindex].s.bp[bpnum].y;      
+#     if dimension == 3 
+        lambdacellpos.z = z;
+	lambdapos.z = allrbs[pindex].s.bp[bpnum].z;	
+#     endif
+
+      /* Compute relative vector from the cell (containning the boundary) 
+      position to the boundary's (analytical) position */
+      foreach_dimension() rel.x = lambdapos.x - lambdacellpos.x;
+
+      /* In a periodic case, the position of the Lagrange multipliers on 
+      the boundary are those of the master rigid body, i.e., they are not 
+      shifted for each periodic clone. Therefore we may have a case where 
+      the cell and the position of the Lagrange multiplier are on opposite 
+      side of the domain. The solution is to subtract/add the periodic 
+      domain length L0 when this happens */
+      foreach_dimension()
+      {
+        if ( rel.x > L0/2. ) rel.x = rel.x - L0;
+        else if ( rel.x < -L0/2. ) rel.x = rel.x + L0;
+      }
+      
+      /* Reset dial integers */
+      NCX = 0; CX = 0; 
+       
+      /* Assign quadrant number CX defining relative position of the 
+      Lagrange point with respect to the center of the cell it belongs to */
+      assign_dial( rel, &CX );
+      CX_NCX.x[] = CX;
+       
+      /* Assign quadrant number NCX given by the direction of the normal 
+      over the geometric boundary of the rigid body */ 
+      assign_dial_fd_boundary( &allrbs[pindex], lambdapos, gcp, Delta, &NCX );
+      CX_NCX.y[] = NCX;                      
+    }
+
+  synchronize((scalar*){CX_NCX.x, CX_NCX.y}); 
+	
+
+  // Tag cells that belong to a 3^dim stencil
   foreach_level(MAXLEVEL,serial) 
   {      
     localcellpos.x = x;
@@ -1426,54 +1450,21 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
     foreach_neighbor() 
     {
       if ( (int)Index.x[] > -1 && level == depth() && is_leaf(cell) ) 
-      {
+      {		
         goflag = 0;
-	bpnum = (int)Index.x[];
-	pindex = rbnumToIndex[(int)Index.y[]];  
-	gcp = &(allrbs[pindex].g); 	
-	lambdacellpos.x = x; 
-	lambdacellpos.y = y; 
-	lambdapos.x = allrbs[pindex].s.bp[bpnum].x;
-	lambdapos.y = allrbs[pindex].s.bp[bpnum].y;	
-#       if dimension == 3
-	  lambdacellpos.z = z;
-	  lambdapos.z = allrbs[pindex].s.bp[bpnum].z;
-#       endif
-
-        /* Compute relative vector from the cell (containning the boundary) 
-	position to the boundary's (analytical) position */
-        foreach_dimension() rel.x = lambdapos.x - lambdacellpos.x;
-
-        /* In a periodic case, the position of the Lagrange multipliers on 
-	the boundary are those of the master rigid body, i.e., they are not 
-	shifted for each periodic clone. Therefore we may have a case where 
-	the cell and the position of the Lagrange multiplier are on opposite 
-	side of the domain. The solution is to subtract/add the periodic 
-	domain length L0 when this happens */
-        foreach_dimension()
-        {
-          if ( rel.x > L0/2. ) rel.x = rel.x - L0;
-          else if ( rel.x < -L0/2. ) rel.x = rel.x + L0;
-        }
-	  
-        /* Reset dial integers */
-	NCX = 0; CX = 0; weight_id = 0;
-
-        /* Assign quadrant number CX defining relative position of the 
-	Lagrange point with respect to the center of the cell it belongs to */
-        assign_dial( rel, &CX );
-
-        /* Assign quadrant number NCX given by the direction of the normal 
-	over the geometric boundary of the rigid body */ 
-        assign_dial_fd_boundary( &allrbs[pindex], lambdapos, gcp, Delta, &NCX );
+	pindex = rbnumToIndex[(int)Index.y[]]; 
 
         /* Compute relative vector from the cell to the cell that contains 
 	the Lagrange multiplier */
-        foreach_dimension() relnl.x = lambdacellpos.x - localcellpos.x;
+        relnl.x = x - localcellpos.x;
+	relnl.y = y - localcellpos.y;
+#       if dimension == 3 
+          relnl.z = z - localcellpos.z;
+#       endif
 	
 	/* Assign weight id if this cell is flagged ( goflag = 1 ) */
-	assign_weight_id_quad_outward( NCX, CX, relnl, Delta, &weight_id, 
-	  	&goflag );
+	assign_weight_id_quad_outward( (int)CX_NCX.y[], (int)CX_NCX.x[], relnl,
+		Delta, &weight_id, &goflag );		
 		
 	if ( goflag == 1 )
 	{
@@ -1491,16 +1482,13 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
     if ( nrbID ) 
     {
       Flag[] = 1;
-      if ( cacheflag == 1 ) 
-      {		
-	Point ppp;
-	ppp.i = point.i;
-        ppp.j = point.j;
-        ppp.k = point.k;			
-        ppp.level = point.level;	  
-	for (int m=0;m<nrbID;++m)	
-	  cache_append( &(allrbs[rbID[m]].Boundary), ppp, 0 );
-      }
+      Point ppp;
+      ppp.i = point.i;
+      ppp.j = point.j;
+      ppp.k = point.k;			
+      ppp.level = point.level;	  
+      for (int m=0;m<nrbID;++m)	
+	cache_append( &(allrbs[rbID[m]].Boundary), ppp, 0 );
     }    
   }
 
@@ -1667,8 +1655,8 @@ method */
 //----------------------------------------------------------------------------
 void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
 	size_t const* rbnumToIndex, RigidBody const* allrefrbs,
-	vector Index, scalar Flag, scalar FlagMesh, vector PeriodicRefCenter,
-	dynUIarray* deactivatedBPindices_,
+	vector Index, vector CX_NCX, scalar Flag, scalar FlagMesh, 
+	vector PeriodicRefCenter, dynUIarray* deactivatedBPindices_,
 	dynPDBarray* deactivatedIndexFieldValues_,
 	bool* at_least_one_deactivated_ )
 //----------------------------------------------------------------------------
@@ -1678,6 +1666,10 @@ void allocate_and_init_rigidbodies( RigidBody* allrbs, const size_t nrb,
   {
     Index.x[] = - 1;   // DLM/FD boundary point index
     Index.y[] = - 1;   // rigid body number
+    CX_NCX.x[] = - 1;  // Relative position the Lagrange point with respect to 
+    		       // the center of the cell it belongs to
+    CX_NCX.y[] = - 1;  // Quadrant number given by the direction of the normal 
+		       // over the geometric boundary of the rigid body
     Flag[] = 0;        // Flag
     FlagMesh[] = 0;    // FlagMesh
     foreach_dimension() PeriodicRefCenter.x[] = 0.;

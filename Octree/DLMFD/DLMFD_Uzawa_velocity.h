@@ -69,6 +69,7 @@ vector DLM_lambda[];
 scalar DLM_Flag[];
 scalar DLM_FlagMesh[];
 vector DLM_Index[];
+vector DLM_CX_NCX[];
 vector DLM_PeriodicRefCenter[];
 vector DLM_r[];
 vector DLM_w[];
@@ -155,7 +156,7 @@ void DLMFD_construction()
   // DLM_PeriodicRefCenter, determine rigid body boundary points and link them
   // to the grid via DLM_Index
   allocate_and_init_rigidbodies( allRigidBodies, nbRigidBodies, RBnumToIndex,
-  	ReferenceRigidBodies, DLM_Index, DLM_Flag, DLM_FlagMesh, 
+  	ReferenceRigidBodies, DLM_Index, DLM_CX_NCX, DLM_Flag, DLM_FlagMesh, 
 	DLM_PeriodicRefCenter, &deactivatedBPindices, 
 	&deactivatedIndexFieldValues, &at_least_one_deactivated );
 
@@ -172,7 +173,7 @@ void DLMFD_construction()
     	RBnumToIndex, DLM_Index, &deactivatedBPindices, 
 	&deactivatedIndexFieldValues, &at_least_one_deactivated );	
     reverse_fill_DLM_Flag( allRigidBodies, nbRigidBodies, RBnumToIndex,
-    	DLM_Flag, DLM_Index, 1 );	
+    	DLM_Flag, DLM_CX_NCX, DLM_Index );	
 # endif	
 
   // Create fictitious-domain cache for the interior domain
@@ -288,7 +289,7 @@ void DLMFD_Uzawa_velocity( const int i )
   double DLM_alpha = 0., DLM_beta = 0.;
   double DLM_tol = DLM_UZAWA_TOL, DLM_nr2 = 0., DLM_nr2_km1 = 0., DLM_wv = 0.;
   int ki = 0, DLM_maxiter = 200, allDLMFDcells = 0, allDLMFDpts = 0, 
-  	total_number_of_cells = 0, indexbp = 0;
+  	total_number_of_cells = 0, indexbp = 0, CX = 0, NCX = 0;
   double rho_f = FLUID_DENSITY;
 
 # if  _MPI
@@ -525,15 +526,10 @@ void DLMFD_Uzawa_velocity( const int i )
   }
    
   
-  /* Interior points qu = fu -(M_u^T)*lambda^0  */
-  /* qu = fu -(M_u^T)*lambda^0 = fu -<lambda,v>_P(t) */
+  /* Interior points qu = fu -(M_u^T)*lambda^0 = fu -<lambda,v>_P(t) */
+  /* Interior points qU = fU -(M_U^T)*lambda^0 = fU + <lambda,V>_P(t) */  
+  /* Interior points qw = fw -(M_w^T)*lambda^0 = fw + <lambda,xi^r_GM>_P(t) */
 
-  /* Interior points qU = fU -(M_U^T)*lambda^0  */
-  /* qU = fU -(M_U^T)*lambda^0 = fU  + <lambda,V>_P(t) */
-  
-  /* Interior points qw = fw -(M_w^T)*lambda^0  */
-  /* qw = fw -(M_w^T)*lambda^0 = fw  + <lambda,xi^r_GM>_P(t) */
-  
   /* For moving particles the fU and fw parts are added after the
      scalar product (for mpi purpose) */
 
@@ -578,6 +574,9 @@ void DLMFD_Uzawa_velocity( const int i )
   /* Boundary points qu = fu -(M_u^T)*lambda^0 */
   /* Boundary points qU = fU -(M_U^T)*lambda^0 */
   /* Boundary points qw = fw -(M_w^T)*lambda^0 */
+  
+  /* For moving particles the fU and fw parts are added after the
+     scalar product (for mpi purpose) */  
   
 # if DLMFD_BOUNDARYPOINTS
     double weight = 0.;
@@ -633,7 +632,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #           endif
 	    
 	    weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
-	  	lambdapos, Delta );
+	  	lambdapos, Delta, (int)DLM_CX_NCX.x[], (int)DLM_CX_NCX.y[] );
 	  
 	    foreach_dimension()
 	      sum.x += weight*DLM_lambda.x[];
@@ -936,7 +935,7 @@ void DLMFD_Uzawa_velocity( const int i )
   /* Note that M_u*u^0 <=> <alpha, u>_P(t) */
   /* Note that M_U*U^0 <=> - <alpha, U>_P(t) */
   /* Note that M_w*w^0 <=> - <alpha, w^r_GM>_P(t) */
-  /* alpha is he test function for lambda the Lagrange multipliers */
+  /* alpha is the test function for the Lagrange multiplier lambda */
 
   /* So r^0 = G -<alpha, u>_P(t) + <alpha, U>_P(t) + <alpha, w^r_GM>_P(t) */
 
@@ -1037,6 +1036,9 @@ void DLMFD_Uzawa_velocity( const int i )
 	  foreach_dimension() 
 	    sum.x = 0.;
 	    
+	  CX = (int)DLM_CX_NCX.x[];
+	  NCX = (int)DLM_CX_NCX.y[];  
+	    
 	  testweight = 0.;
 	
 	  foreach_neighbor() 
@@ -1050,7 +1052,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #             endif
 	
 	      weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
-	    	lambdapos, Delta );
+	    	lambdapos, Delta, CX, NCX );
 
 	      testweight += weight;
 	      
@@ -1307,7 +1309,8 @@ void DLMFD_Uzawa_velocity( const int i )
 #               endif
 	  
 	        weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
-			lambdapos, Delta );
+			lambdapos, Delta, (int)DLM_CX_NCX.x[], 
+			(int)DLM_CX_NCX.y[] );
 
 	        foreach_dimension()
 	          sum.x += weight*DLM_w.x[]; 
@@ -1635,7 +1638,10 @@ void DLMFD_Uzawa_velocity( const int i )
 #             endif
 
 	      foreach_dimension() 
-	        sum.x = 0.; 
+	        sum.x = 0.;
+		
+	      CX = (int)DLM_CX_NCX.x[];
+	      NCX = (int)DLM_CX_NCX.y[];		 
 		
 	      testweight = 0.;
 
@@ -1650,7 +1656,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #                 endif
 	     
 	          weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
-	      	  	lambdapos, Delta );
+	      	  	lambdapos, Delta, CX, NCX );
 	          testweight += weight;
 	      	      	      
 	          foreach_dimension() 
@@ -1858,7 +1864,7 @@ void DLMFD_Uzawa_velocity( const int i )
 #             endif
 
 	      weight = reversed_weight( pp, weightcellpos, lambdacellpos, 
-	  	lambdapos, Delta );
+	  	lambdapos, Delta, (int)DLM_CX_NCX.x[], (int)DLM_CX_NCX.y[] );
 	  
 	      foreach_dimension()
 	        sum.x += weight*DLM_lambda.x[];
@@ -1951,6 +1957,7 @@ void initialize_DLMFD_fields_to_zero( void )
     {
       DLM_lambda.x[] = 0. ;
       DLM_Index.x[] = 0. ;
+      DLM_CX_NCX.x[] = 0. ;
       DLM_PeriodicRefCenter.x[] = 0. ;
       DLM_r.x[] = 0. ;
       DLM_w.x[] = 0. ;
