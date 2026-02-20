@@ -110,6 +110,10 @@ void create_referenceRB_boundary_geomfeatures_CircularCylinder2D(
     dlm_bd->bp[k].x = radius * cos( thetak );
     dlm_bd->bp[k].y = radius * sin( thetak );
     dlm_bd->bp[k].z = 0.;
+    // We arbitrary set the norm of the normal vector to 0.25 * radius
+    dlm_bd->normal[k].x = ( dlm_bd->bp[k].x - gcp->center.x ) / 4.;
+    dlm_bd->normal[k].y = ( dlm_bd->bp[k].y - gcp->center.y ) / 4.;
+    dlm_bd->normal[k].z = 0.;         
   }
 }
 

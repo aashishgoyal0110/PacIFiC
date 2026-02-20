@@ -119,7 +119,7 @@ void compute_nboundary_Cone( GeomParameter const* gcp, int* nb )
   
   *nb = 2;
  
-  size_t npts_radius = (size_t)( gcp->tcgp->BottomRadius / spacing ) + 1 ;
+  size_t npts_radius = (size_t)( gcp->tcgp->BottomRadius / spacing ) + 1, n ;
   double delta_radius = gcp->tcgp->BottomRadius 
   	/ ( (double)(npts_radius) - 1. ) ;
   for (size_t i=1;i<npts_radius;++i)
@@ -140,7 +140,8 @@ void compute_nboundary_Cone( GeomParameter const* gcp, int* nb )
     double local_radius = - gcp->tcgp->BottomRadius
     	* (double)(i) * delta_height / gcp->tcgp->height 
 	+ gcp->tcgp->BottomRadius;
-    *nb += (size_t)( 2. * pi * local_radius / spacing ) ;
+    n = (size_t)( 2. * pi * local_radius / spacing ); 	
+    *nb += n ? n : 1 ;
   }    
         
   if( *nb == 0 )
@@ -159,18 +160,30 @@ void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
   double delta = L0 / (double)(1 << MAXLEVEL) ;
   double spacing = INTERBPCOEF * delta, local_angle, local_radius,
   	local_radius_ratio, delta_radius, inclined_height, bin, dangle, 
-	delta_height;
+	delta_height, norm, div = 4. * ( sqrt( 1 + sq( gcp->tcgp->BottomRadius )
+		/ sq( gcp->tcgp->height ) ) - gcp->tcgp->BottomRadius
+		/ gcp->tcgp->height );
   int isb = 0;
-  coord pos, unit_axial, n_cross_rad;
+  coord pos, unit_axial, n_cross_rad, bottom_normal;
   size_t npts_local_radius, npts_radius, npts_height;
-  
+
+  // Note: we arbitrary set the norm of the normal vector to 0.25 * radius
+
   foreach_dimension() 
     unit_axial.x = gcp->tcgp->BottomToTopVec.x / gcp->tcgp->height;  
-  
+
+  foreach_dimension() 
+    bottom_normal.x = ( gcp->tcgp->BottomCenter.x - gcp->center.x ) 
+    	* ( gcp->tcgp->BottomRadius / gcp->tcgp->height );    
+
   // Bottom center
-  foreach_dimension() dlm_bd->bp[isb].x = gcp->tcgp->BottomCenter.x;
+  foreach_dimension() 
+  {
+    dlm_bd->bp[isb].x = gcp->tcgp->BottomCenter.x;
+    dlm_bd->normal[isb].x = bottom_normal.x;
+  }  
   isb++;
-  
+
   // Bottom disk in concentric circles
   n_cross_rad.x = unit_axial.y * gcp->tcgp->BottomRadialRefVec.z 
   	- unit_axial.z * gcp->tcgp->BottomRadialRefVec.y; 
@@ -191,19 +204,43 @@ void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
     {      
       local_angle = 2. * pi * (double)(j) / (double)(npts_local_radius) ;
       
-      foreach_dimension() 
+      foreach_dimension()
+      { 
         pos.x = local_radius_ratio * ( 
 			cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x
-			+ sin( local_angle ) * n_cross_rad.x );     	
-
-      foreach_dimension() 
-        dlm_bd->bp[isb].x = pos.x + gcp->tcgp->BottomCenter.x;;
+			+ sin( local_angle ) * n_cross_rad.x );     	 
+        dlm_bd->bp[isb].x = pos.x + gcp->tcgp->BottomCenter.x;
+      }
+      
+      if ( i == npts_radius - 1 )
+      {
+        norm = 0.;
+	foreach_dimension()
+	{
+	  dlm_bd->normal[isb].x = bottom_normal.x
+	  	+ ( cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x
+			+ sin( local_angle ) * n_cross_rad.x ) / div;
+	  norm += sq( dlm_bd->normal[isb].x );
+        }
+        norm = sqrt( norm );
+        foreach_dimension() 
+          dlm_bd->normal[isb].x *= 0.25 * gcp->tcgp->BottomRadius / norm;
+      }		     
+      else
+        foreach_dimension()
+	  dlm_bd->normal[isb].x = bottom_normal.x;      
+      
       isb++;          
     }
   }
-  
+
   // Top center
-  foreach_dimension() dlm_bd->bp[isb].x = gcp->tcgp->TopCenter.x;
+  foreach_dimension() 
+  {
+    dlm_bd->bp[isb].x = gcp->tcgp->TopCenter.x;
+    dlm_bd->normal[isb].x = ( gcp->tcgp->TopCenter.x - gcp->center.x )
+    	* (  gcp->tcgp->BottomRadius / ( 3. * gcp->tcgp->height ) );
+  }  
   isb++;
 
   // Lateral surface
@@ -219,6 +256,7 @@ void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
     	* (double)(i) * delta_height / gcp->tcgp->height 
 	+ gcp->tcgp->BottomRadius;
     npts_local_radius = (size_t)( 2. * pi * local_radius / spacing ) ;
+    npts_local_radius = npts_local_radius ? npts_local_radius : 1;
     dangle = pi / (double)(npts_local_radius);
      
     // odd or even
@@ -237,10 +275,24 @@ void create_referenceRB_boundary_geomfeatures_Cone( GeomParameter const* gcp,
 		+ (double)(i) * delta_height * unit_axial.x
 		+ gcp->tcgp->BottomCenter.x;                
 		
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      norm = 0.;
+      foreach_dimension() 
+      {
+        dlm_bd->bp[isb].x = pos.x;
+	dlm_bd->normal[isb].x = 
+		( cos( local_angle ) * gcp->tcgp->BottomRadialRefVec.x  
+      		+ sin( local_angle ) * n_cross_rad.x ) / gcp->tcgp->BottomRadius
+		+ ( gcp->tcgp->BottomRadius / gcp->tcgp->height ) 
+			* unit_axial.x ;
+	norm += sq( dlm_bd->normal[isb].x );
+      }
+      norm = sqrt( norm );
+      foreach_dimension() 
+        dlm_bd->normal[isb].x *= 0.25 * gcp->tcgp->BottomRadius / norm;
+            
       isb++;
     }         		    	
-  }                 
+  }
 }
 
 

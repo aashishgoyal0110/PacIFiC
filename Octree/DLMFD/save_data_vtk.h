@@ -123,6 +123,27 @@ void output_vtu_dlmfd_bndpts( RigidBody const* allrb, const int np,
       fprintf( fdlm, "\n" ); 	
       fputs( "</DataArray>\n", fdlm ); 
       fputs( "</Cells>\n", fdlm );
+      fputs( "<PointData Vectors=\"Normal\">\n", fdlm );
+      fputs( "<DataArray Name=\"Normal\" NumberOfComponents=\"3\" "
+      	"type=\"Float32\" format=\"ascii\">", fdlm );      
+      for (size_t k = 0; k < np; k++) 
+      {
+        RigidBodyBoundary const* sbb = &(allrb[k].s);
+	size_t m = (size_t) sbb->m;
+	for (size_t j = 0; j < m; j++)
+	  if ( sbb->deactivated[j] == 0 )
+	  {  
+	    fprintf( fdlm, "%12.5e %12.5e", sbb->normal[j].x, 
+	    	sbb->normal[j].y );
+#           if dimension == 3  
+              fprintf( fdlm, " %12.5e\n", sbb->normal[j].z );
+#           else
+              fprintf( fdlm, " 0.\n" );
+#           endif	
+          }
+      }
+      fputs( "</DataArray>\n", fdlm );  
+      fputs( "</PointData>\n", fdlm );                        
       fputs( "</Piece>\n", fdlm );
       fputs( "</UnstructuredGrid>\n", fdlm );            
       fputs( "</VTKFile>\n", fdlm );

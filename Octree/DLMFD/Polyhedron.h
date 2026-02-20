@@ -42,7 +42,7 @@ void periodic_correction( GeomParameter const* gcp, coord* pos,
 //----------------------------------------------------------------------------
 void distribute_points_edge( GeomParameter const* gcp, coord const corner1, 
 	coord const corner2, RigidBodyBoundary* dlm_bd, int const lN, 
-	int const istart )
+	int const istart, coord const normal )
 //----------------------------------------------------------------------------
 {
   if ( lN > 0 )
@@ -54,10 +54,12 @@ void distribute_points_edge( GeomParameter const* gcp, coord const corner1,
 
     for (int i = 1; i <= lN-2; i++)
       foreach_dimension()
+      {
         dlm_bd->bp[istart + i -1].x = corner1.x + (double)i * dinc.x;
+	dlm_bd->normal[istart + i -1].x = normal.x;
+      }	
   }
 }
-
 
 
 

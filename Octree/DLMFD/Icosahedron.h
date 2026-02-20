@@ -45,17 +45,35 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 	const int lN )
 //----------------------------------------------------------------------------
 {
-  int nfaces = gcp->pgp->allFaces;
-  int iref, i1, i2, ichoice = 0, isb = 0,  npoints;
-  coord pos;
+  int nfaces = gcp->pgp->allFaces, nc = gcp->ncorners;
+  int iref, i1, i2, isb = 0,  npoints;
+  coord pos, gc_to_center_face, normal;
+  double norm = 0.;
+  
+  // Note: we arbitrary set the norm of the normal vector to 0.25 *
+  // circumscribed radius
+
+  /* Normal at the corners */
+  coord* corner_normals = (coord*) calloc( nc, sizeof(coord) );
+  for (size_t k=0;k<nc;++k)
+  {
+    corner_normals[k].x = gcp->pgp->cornersCoord[k][0] - gcp->center.x;
+    corner_normals[k].y = gcp->pgp->cornersCoord[k][1] - gcp->center.y;    
+    corner_normals[k].z = gcp->pgp->cornersCoord[k][2] - gcp->center.z; 
+    norm = 0.;
+    foreach_dimension() norm += sq( corner_normals[k].x );
+    norm = sqrt( norm );
+    foreach_dimension() corner_normals[k].x *= 0.25 * gcp->radius / norm;       
+  }
+    
 
   /* Add first interrior points on surfaces */
   for (int i = 0; i < nfaces; i++)
   {
     npoints = gcp->pgp->numPointsOnFaces[i];
 
-    iref = gcp->pgp->cornersIndex[i][ichoice];
-    i1 = gcp->pgp->cornersIndex[i][ichoice + 1];
+    iref = gcp->pgp->cornersIndex[i][0];
+    i1 = gcp->pgp->cornersIndex[i][1];
     i2 = gcp->pgp->cornersIndex[i][npoints-1];
 
     coord refcorner = {gcp->pgp->cornersCoord[iref][0],
@@ -70,6 +88,9 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
     	gcp->pgp->cornersCoord[i2][1],
     	gcp->pgp->cornersCoord[i2][2]};
 
+    foreach_dimension() 
+      gc_to_center_face.x = refcorner.x + dir1.x + dir2.x - gcp->center.x;
+
     foreach_dimension()
     {
       dir1.x -= refcorner.x;
@@ -77,18 +98,25 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
       dir1.x /= (lN-1);
       dir2.x /= (lN-1);
     }
+    
+    VecVecCrossProduct( dir1, dir2, &normal );
+    if ( VecVecDotProduct( gc_to_center_face, normal ) < 0. )
+      foreach_dimension() normal.x *= -1.;
+    norm = 0.;
+    foreach_dimension() norm += sq( normal.x );
+    norm = sqrt( norm );
+    foreach_dimension() normal.x *= 0.25 * gcp->radius / norm;    
 
     for (int ii = 1; ii <= lN-2; ii++)
     {
       for (int jj = 1; jj <= lN-2 - ii; jj++)
       {
         foreach_dimension()
-	  pos.x = refcorner.x + (double) ii * dir1.x
-		+ (double) jj * dir2.x;
-
-        foreach_dimension()
-	  dlm_bd->bp[isb].x = pos.x;
-
+	{
+	  dlm_bd->bp[isb].x = refcorner.x + (double) ii * dir1.x
+		      + (double) jj * dir2.x;
+	  dlm_bd->normal[isb].x = normal.x ;	      
+	}
         isb++;
       }
     }
@@ -109,6 +137,13 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
       jm1 = gcp->pgp->cornersIndex[i][j];
       j1 = gcp->pgp->cornersIndex[i][(j+1) % npoints];
 
+      foreach_dimension() 
+        normal.x = 0.5 * ( corner_normals[jm1].x + corner_normals[j1].x );
+      norm = 0.;
+      foreach_dimension() norm += sq( normal.x );
+      norm = sqrt( norm );
+      foreach_dimension() normal.x *= 0.25 * gcp->radius / norm;
+
       if ( jm1 > j1 )
       {
 	if ( allindextable[jm1][j1] == 0 )
@@ -119,7 +154,7 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[j1][0],
 	  	gcp->pgp->cornersCoord[j1][1],
 	  	gcp->pgp->cornersCoord[j1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, normal );
 	  allindextable[jm1][j1] = 1;
 	  isb += lN - 2;
 	}
@@ -134,7 +169,7 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
 	  coord c2 = {gcp->pgp->cornersCoord[jm1][0],
 	  	gcp->pgp->cornersCoord[jm1][1],
 	  	gcp->pgp->cornersCoord[jm1][2]};
-	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb );
+	  distribute_points_edge( gcp, c1, c2, dlm_bd, lN, isb, normal );
 	  allindextable[j1][jm1] = 1;
 	  isb += lN - 2;
 	}
@@ -143,17 +178,22 @@ void create_referenceRB_boundary_geomfeatures_Icosahedron(
   }
 
   /* Add the final 12 corners points */
-  for (int i = 0; i  < gcp->ncorners; i++)
+  for (size_t i = 0; i < nc; i++)
   {
     pos.x = gcp->pgp->cornersCoord[i][0];
     pos.y = gcp->pgp->cornersCoord[i][1];
     pos.z = gcp->pgp->cornersCoord[i][2];
 
     foreach_dimension()
+    {
       dlm_bd->bp[isb].x = pos.x;
+      dlm_bd->normal[isb].x = corner_normals[i].x;
+    }
 
     isb++;
-  }   
+  }
+  
+  free( corner_normals ); corner_normals = NULL;
 }
 
 

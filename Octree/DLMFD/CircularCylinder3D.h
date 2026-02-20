@@ -138,8 +138,10 @@ void create_referenceRB_boundary_geomfeatures_CircularCylinder3D(
 {
   double delta = L0 / (double)(1 << MAXLEVEL) ;
   double spacing = INTERBPCOEF * delta;
-  coord pos, unit_axial, n_cross_rad;
+  coord pos, unit_axial, n_cross_rad, top_normal, bottom_normal;
   int isb = 0;
+
+  // Note: we arbitrary set the norm of the normal vector to 0.25 * radius
   
   foreach_dimension() 
     unit_axial.x = gcp->cgp->BottomToTopVec.x / gcp->cgp->height;
@@ -149,10 +151,18 @@ void create_referenceRB_boundary_geomfeatures_CircularCylinder3D(
   	- unit_axial.x * gcp->cgp->RadialRefVec.z;    
   n_cross_rad.z = unit_axial.x * gcp->cgp->RadialRefVec.y 
   	- unit_axial.y * gcp->cgp->RadialRefVec.x; 
+
+  foreach_dimension() 
+  {
+    bottom_normal.x = ( gcp->cgp->BottomCenter.x - gcp->center.x ) 
+    	* ( 0.5 * gcp->cgp->radius / gcp->cgp->height );
+    top_normal.x = ( gcp->cgp->TopCenter.x - gcp->center.x ) 
+    	* ( 0.5 * gcp->cgp->radius / gcp->cgp->height );
+  }    
     
   // Cylinder height (diamond meshing)
-  size_t npts_height = (size_t)( 2. * gcp->cgp->height / ( sqrt(3.) * spacing ) ) 
-  	+ 1 ;
+  size_t npts_height = (size_t)( 2. * gcp->cgp->height / 
+  	( sqrt(3.) * spacing ) ) + 1 ;
   size_t npts_local_radius = (size_t)( 2. * pi * gcp->cgp->radius / spacing );
   double bin, local_angle, dangle = pi / (double)(npts_local_radius),
 	delta_height = gcp->cgp->height / ( (double)(npts_height) - 1. ) ;  
@@ -172,18 +182,43 @@ void create_referenceRB_boundary_geomfeatures_CircularCylinder3D(
 		+ (double)(i) * delta_height * unit_axial.x
 		+ gcp->cgp->BottomCenter.x;                
 		
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      foreach_dimension() 
+        dlm_bd->bp[isb].x = pos.x;
+      
+      if ( i == 0 )
+        foreach_dimension() 
+          dlm_bd->normal[isb].x = ( ( cos( local_angle ) 
+	  	* gcp->cgp->RadialRefVec.x
+      		+ sin( local_angle ) * n_cross_rad.x ) / 4.
+		+ bottom_normal.x ) / sqrt(2.) ;
+      else if ( i == npts_height - 1 )
+        foreach_dimension() 
+          dlm_bd->normal[isb].x = ( ( cos( local_angle ) 
+	  	* gcp->cgp->RadialRefVec.x
+      		+ sin( local_angle ) * n_cross_rad.x ) / 4.
+		+ top_normal.x ) / sqrt(2.) ;
+      else
+        foreach_dimension() 
+          dlm_bd->normal[isb].x = ( cos( local_angle ) 
+	  	* gcp->cgp->RadialRefVec.x
+      		+ sin( local_angle ) * n_cross_rad.x ) / 4.;
       isb++;
     }
   }
 
   // Bottom and top centers
-  foreach_dimension() pos.x = gcp->cgp->BottomCenter.x;
-  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+  foreach_dimension() 
+  {
+    dlm_bd->bp[isb].x = gcp->cgp->BottomCenter.x;
+    dlm_bd->normal[isb].x = bottom_normal.x;
+  }
   isb++;
   		  
-  foreach_dimension() pos.x = gcp->cgp->TopCenter.x;
-  foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+  foreach_dimension() 
+  {
+    dlm_bd->bp[isb].x = gcp->cgp->TopCenter.x;
+    dlm_bd->normal[isb].x = top_normal.x;
+  }    
   isb++;  
 
   // Bottom and top disks in concentric circles 
@@ -207,13 +242,21 @@ void create_referenceRB_boundary_geomfeatures_CircularCylinder3D(
       // Bottom disk
       foreach_dimension() 
         pos.x += gcp->cgp->BottomCenter.x;
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      foreach_dimension() 
+      {
+        dlm_bd->bp[isb].x = pos.x;
+	dlm_bd->normal[isb].x = bottom_normal.x;
+      }
       isb++;      
       
       // Top disk
       foreach_dimension() 
         pos.x += gcp->cgp->BottomToTopVec.x;
-      foreach_dimension() dlm_bd->bp[isb].x = pos.x;
+      foreach_dimension() 
+      {
+        dlm_bd->bp[isb].x = pos.x;
+        dlm_bd->normal[isb].x = top_normal.x;
+      }	
       isb++;      
     }
   }

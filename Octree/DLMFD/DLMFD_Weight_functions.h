@@ -4014,85 +4014,13 @@ size_t is_in_cubic_boundingbox( const double x, const double y,
 assign the dial accordingly */
 //----------------------------------------------------------------------------
 void assign_dial_fd_boundary( RigidBody* p, const coord posb, 
-	GeomParameter const* gcp, const double Delta, int* NCX ) 
+	GeomParameter const* gcp, const double Delta, const coord normal, 
+	int* NCX ) 
 //----------------------------------------------------------------------------
-{
-  bool isin_xp = false, isin_yp = false, isin_zp = false;  
-  double RDelta = Delta / 100.;
-
-  switch ( p->shape )
-  {
-    case SPHERE:
-      isin_xp = is_in_Sphere( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Sphere( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Sphere( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-	  
-    case CIRCULARCYLINDER2D:
-      isin_xp = is_in_CircularCylinder2D( posb.x + RDelta, posb.y, gcp );
-      isin_yp = is_in_CircularCylinder2D( posb.x, posb.y + RDelta, gcp );
-      break;
-	  
-    case CUBE:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-
-    case TETRAHEDRON:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-      
-    case OCTAHEDRON:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-
-    case DODECAHEDRON:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;  
-            
-    case ICOSAHEDRON:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-      
-    case BOX:
-      isin_xp = is_in_Polyhedron( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Polyhedron( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Polyhedron( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;
-      
-    case CIRCULARCYLINDER3D:
-      isin_xp = is_in_CircularCylinder3D( posb.x + RDelta, posb.y, posb.z, 
-      		gcp );
-      isin_yp = is_in_CircularCylinder3D( posb.x, posb.y + RDelta, posb.z, 
-      		gcp );
-      isin_zp = is_in_CircularCylinder3D( posb.x, posb.y, posb.z + RDelta, 
-      		gcp );
-      break; 
-
-    case CONE:
-      isin_xp = is_in_Cone( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_Cone( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_Cone( posb.x, posb.y, posb.z + RDelta, gcp );
-      break; 
-      
-    case TRUNCATEDCONE:
-      isin_xp = is_in_TruncatedCone( posb.x + RDelta, posb.y, posb.z, gcp );
-      isin_yp = is_in_TruncatedCone( posb.x, posb.y + RDelta, posb.z, gcp );
-      isin_zp = is_in_TruncatedCone( posb.x, posb.y, posb.z + RDelta, gcp );
-      break;                          
-	  
-    default:
-      fprintf( stderr,"Unknown Rigid Body shape !!\n" );
-  }
+{  
+  bool isin_xp = normal.x < 0. ? true : false;
+  bool isin_yp = normal.y < 0. ? true : false;  
+  bool isin_zp = normal.z < 0. ? true : false;      
   
 # if dimension == 2
     if ( isin_xp ) 

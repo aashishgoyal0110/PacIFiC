@@ -155,8 +155,12 @@ void create_referenceRB_boundary_geomfeatures_Sphere(
     pos.y = hydro_radius * sin( phik ) * sin( thetak );
     pos.z = hydro_radius * cos( thetak );
 
-    foreach_dimension() 
+    foreach_dimension()
+    { 
       dlm_bd->bp[k].x = pos.x;
+      // We arbitrary set the norm of the normal vector to 0.25 * radius
+      dlm_bd->normal[k].x = ( pos.x - gcp->center.x ) / 4.;
+    }
   }
 }
 

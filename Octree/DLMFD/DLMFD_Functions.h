@@ -428,7 +428,7 @@ void inverse3by3matrix__( const double Matrix[3][3],
 
 
 /** 3 x 3 matrix - vector dot product where the matrix is stored as a 
-double[][] and the vector as a coord */
+double[][] and the vector as a coord, the result is stored as a coord */
 //----------------------------------------------------------------------------
 void matCoordDotProduct( const double Matrix[3][3], const coord v, coord* res ) 
 //----------------------------------------------------------------------------
@@ -442,7 +442,7 @@ void matCoordDotProduct( const double Matrix[3][3], const coord v, coord* res )
 
 
 /** 3 x 3 matrix - vector dot product where the matrix is stored as a 
-double[][] and the vector as a coord */
+double[][] and the vector as a double*, the result is stored as a double* */
 //----------------------------------------------------------------------------
 void matVecDotProduct( const double Matrix[3][3], double const* v, double* res ) 
 //----------------------------------------------------------------------------
@@ -456,7 +456,7 @@ void matVecDotProduct( const double Matrix[3][3], double const* v, double* res )
 
 
 /** 3 x 3 matrix - vector dot product where the matrix is stored as a 
-double[][] and the vector as a coord */
+double[][] and the vector as a coord, the result is stored as a coord */
 //----------------------------------------------------------------------------
 void matTransposedCoordDotProduct( const double Matrix[3][3], const coord v, 
 	coord* res ) 
@@ -471,7 +471,7 @@ void matTransposedCoordDotProduct( const double Matrix[3][3], const coord v,
 
 
 /** 3 x 3 matrix transposed - vector dot product where the matrix is stored as 
-a double[][] and the vector as a coord */
+a double[][] and the vector as a coord, the result is stored as a double* */
 //----------------------------------------------------------------------------
 void matTransposedVecDotProduct( const double Matrix[3][3], double const* v, 
 	double* res ) 
@@ -486,7 +486,7 @@ void matTransposedVecDotProduct( const double Matrix[3][3], double const* v,
 
 
 /** 3 x 3 matrix - 3 x 3 matrix dot product where both matrices are stored as
-double[][] */
+double[][], the result is stored as a double[3][3] */
 //----------------------------------------------------------------------------
 void matMatDotProduct( const double A[3][3], const double B[3][3], 
 	double Res[3][3] ) 
@@ -504,7 +504,7 @@ void matMatDotProduct( const double A[3][3], const double B[3][3],
 
 
 /** 3 x 3 matrix - 3 x 3 matrix transposed dot product where both matrices are 
-stored as double[][] */
+stored as double[][], the result is stored as a double[3][3] */
 //----------------------------------------------------------------------------
 void matMatTransposedDotProduct( const double A[3][3], const double B[3][3], 
 	double Res[3][3] ) 
@@ -516,6 +516,35 @@ void matMatTransposedDotProduct( const double A[3][3], const double B[3][3],
       Res[i][j] = 0.;
       for (size_t k=0;k<3;++k) Res[i][j] += A[i][k] * B[j][k];
     }    
+}
+
+
+
+
+/** Vec - Vec cross product where both vectors are stored as coord, the 
+result is stored as a coord */
+//----------------------------------------------------------------------------
+void VecVecCrossProduct( coord const u, coord const v, coord* res )
+//----------------------------------------------------------------------------
+{
+  (*res).x = u.y * v.z - u.z * v.y;
+  (*res).y = u.z * v.x - u.x * v.z;
+  (*res).z = u.x * v.y - u.y * v.x; 
+}
+
+
+
+
+/** Vec - Vec dot product where both vectors are stored as coord */
+//----------------------------------------------------------------------------
+double VecVecDotProduct( coord const u, coord const v )
+//----------------------------------------------------------------------------
+{
+  double res = 0.;
+  
+  foreach_dimension() res += u.x * v.x; 
+  
+  return ( res );
 }
 
 
@@ -1383,6 +1412,7 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
   coord lambdacellpos = {0., 0., 0.};
   coord lambdapos = {0., 0., 0.};
   coord localcellpos = {0., 0., 0.}; 
+  coord normal = {0., 0., 0.}; 
   GeomParameter const* gcp = NULL;
 
 
@@ -1392,14 +1422,17 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
     {
       bpnum = (int)Index.x[];
       pindex = rbnumToIndex[(int)Index.y[]];
-      gcp = &(allrbs[pindex].g);        
-      lambdacellpos.x = x;
+      gcp = &(allrbs[pindex].g);       
+      lambdacellpos.x = x;      
       lambdacellpos.y = y;
       lambdapos.x = allrbs[pindex].s.bp[bpnum].x;
-      lambdapos.y = allrbs[pindex].s.bp[bpnum].y;      
+      lambdapos.y = allrbs[pindex].s.bp[bpnum].y;
+      normal.x = allrbs[pindex].s.normal[bpnum].x;
+      normal.y = allrbs[pindex].s.normal[bpnum].y;            
 #     if dimension == 3 
         lambdacellpos.z = z;
-	lambdapos.z = allrbs[pindex].s.bp[bpnum].z;	
+	lambdapos.z = allrbs[pindex].s.bp[bpnum].z;
+	normal.z = allrbs[pindex].s.normal[bpnum].z; 	
 #     endif
 
       /* Compute relative vector from the cell (containning the boundary) 
@@ -1428,7 +1461,8 @@ void reverse_fill_DLM_Flag( RigidBody* allrbs, const size_t nrb,
        
       /* Assign quadrant number NCX given by the direction of the normal 
       over the geometric boundary of the rigid body */ 
-      assign_dial_fd_boundary( &allrbs[pindex], lambdapos, gcp, Delta, &NCX );
+      assign_dial_fd_boundary( &allrbs[pindex], lambdapos, gcp, Delta, normal,
+      	&NCX );
       CX_NCX.y[] = NCX;                      
     }
 
@@ -1540,7 +1574,7 @@ void create_boundary_points( RigidBody* p, RigidBody const* refrb,
 	}
       }
     }
-
+    
     if ( setPeriodicRefCenter )
     {
       // Setting the periodic clone center vector field
@@ -1551,6 +1585,9 @@ void create_boundary_points( RigidBody* p, RigidBody const* refrb,
 
     foreach_dimension() 
       p->s.bp[i].x = pos.x; 
+      
+    // Rotate normal vector of the reference rigid body
+    matCoordDotProduct( p->RotMat, refrb->s.normal[i], &(p->s.normal[i]) );
   }      
 }
 
