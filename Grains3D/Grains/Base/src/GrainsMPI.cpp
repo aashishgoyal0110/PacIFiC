@@ -350,8 +350,8 @@ bool GrainsMPI::insertParticle( PullMode const& mode )
   Transform trot;
   Quaternion qrot;    
   int ptype = - 1;
-  size_t npositions = m_insertion_position->size();
-  size_t nangpositions = m_insertion_angular_position->size();  
+  size_t npositions = m_insertion_position->size(), 
+  	nangpositions = m_insertion_angular_position->size(), m = 0;  
   Particle *particle = NULL;    
   
   if ( insert_counter == 0 )
@@ -368,80 +368,84 @@ bool GrainsMPI::insertParticle( PullMode const& mode )
       
     if ( ptype > - 1 )
     {
-      // Return the particle to be inserted
-      particle = m_allcomponents.getParticleToInsert( ptype );
+      while ( insert.second && m < m_insertion_attempts )
+      {
+        // Return the particle to be inserted
+        particle = m_allcomponents.getParticleToInsert( ptype );
 	
-      // Initialisation of the centre of mass position of the particle
-      if ( m_rank == 0 ) position = getInsertionPoint();
-      position = m_wrapper->Broadcast_Point3( position );
-      particle->setPosition( position );
+        // Initialisation of the centre of mass position of the particle
+        if ( m_rank == 0 ) position = getInsertionPoint();
+        position = m_wrapper->Broadcast_Point3( position );
+        particle->setPosition( position );
       
-      // Initialisation of the angular position of the particle
-      // Rem: we compose to the right by a pure rotation as the particle
-      // already has a non-zero position that we do not want to change (and
-      // that we would change if we would compose to the left)
-      if ( m_init_angpos != IAP_FIXED )
-      {
-        if ( m_rank == 0 ) 
-	{
-	  if ( m_init_angpos == IAP_RANDOM ) 
-	    mrot = GrainsExec::RandomRotationMatrix( m_dimension );
-	  else // m_init_angpos == IAP_FILE
+        // Initialisation of the angular position of the particle
+        // Rem: we compose to the right by a pure rotation as the particle
+        // already has a non-zero position that we do not want to change (and
+        // that we would change if we would compose to the left)
+        if ( m_init_angpos != IAP_FIXED )
+        {
+          if ( m_rank == 0 ) 
 	  {
-	    m_il_sap = m_insertion_angular_position->begin();
-	    mrot = *m_il_sap;
-	  }
-	} 
-        mrot = m_wrapper->Broadcast_Matrix( mrot );
-        trot.setBasis( mrot );
-        particle->composePositionRightByTransform( trot );
-      }            
+	    if ( m_init_angpos == IAP_RANDOM ) 
+	      mrot = GrainsExec::RandomRotationMatrix( m_dimension );
+	    else // m_init_angpos == IAP_FILE
+	    {
+	      m_il_sap = m_insertion_angular_position->begin();
+	      mrot = *m_il_sap;
+	    }
+	  } 
+          mrot = m_wrapper->Broadcast_Matrix( mrot );
+          trot.setBasis( mrot );
+          particle->composePositionRightByTransform( trot );
+        }            
       
-      // Initialisation of the particle velocity
-      if ( m_rank == 0 ) computeInitVit( vtrans, vrot );
-      vtrans = m_wrapper->Broadcast_Vector3( vtrans ); 
-      vrot = m_wrapper->Broadcast_Vector3( vrot ); 
-      particle->setTranslationalVelocity( vtrans );
-      particle->setAngularVelocity( vrot );      
+        // Initialisation of the particle velocity
+        if ( m_rank == 0 ) computeInitVit( vtrans, vrot );
+        vtrans = m_wrapper->Broadcast_Vector3( vtrans ); 
+        vrot = m_wrapper->Broadcast_Vector3( vrot ); 
+        particle->setTranslationalVelocity( vtrans );
+        particle->setAngularVelocity( vrot );      
 
-      // Transform and quaternion
-      particle->initialize_transformWithCrust_to_notComputed();
-      qrot.setQuaternion( particle->getRigidBody()->getTransform()
+        // Transform and quaternion
+        particle->initialize_transformWithCrust_to_notComputed();
+        qrot.setQuaternion( particle->getRigidBody()->getTransform()
 		->getBasis() );
-      particle->setQuaternionRotation( qrot );      
+        particle->setQuaternionRotation( qrot );      
 
-      // If insertion if successful, shift particle from wait to inserted
-      // and initialize particle rotation quaternion from rotation matrix
-      insert = m_collision->insertParticleParallel( m_time, particle,
-      	m_allcomponents.getActiveParticles(),
-	m_allcomponents.getCloneParticles(),
-	m_allcomponents.getReferenceParticles(), 
-	m_periodic, m_force_insertion,
-	m_wrapper );
+        // If insertion if successful, shift particle from wait to inserted
+        // and initialize particle rotation quaternion from rotation matrix
+        insert = m_collision->insertParticleParallel( m_time, particle,
+      		m_allcomponents.getActiveParticles(),
+		m_allcomponents.getCloneParticles(),
+		m_allcomponents.getReferenceParticles(), 
+		m_periodic, m_force_insertion,
+		m_wrapper );
 
-      // If no contact
-      if ( !insert.second )
-      {
-        // If particle is in LinkedCell
-	if ( insert.first )
-	{
-	  m_allcomponents.WaitToActive( true );
-	  particle->InitializeForce( true );
-        }
-	// If not in LinkedCell
-        else
-          m_allcomponents.DeleteAndDestroyWait();
+        // If no contact
+        if ( !insert.second )
+        {
+          // If particle is in LinkedCell
+	  if ( insert.first )
+	  {
+	    m_allcomponents.WaitToActive( true );
+	    particle->InitializeForce( true );
+          }
+	  // If not in LinkedCell
+          else
+            m_allcomponents.DeleteAndDestroyWait();
 
-	if ( npositions ) 
-	{
-	  if ( m_insertion_order == PM_RANDOM )
-	    (*m_insertion_position)[m_i_sp] = m_insertion_position->back();
-	  m_insertion_position->pop_back();
-	  if ( m_insertion_position->size() < 
+	  if ( npositions ) 
+	  {
+	    if ( m_insertion_order == PM_RANDOM )
+	      (*m_insertion_position)[m_i_sp] = m_insertion_position->back();
+	    m_insertion_position->pop_back();
+	    if ( m_insertion_position->size() < 
 	  	size_t( 0.5 * double(m_insertion_position->capacity()) ) ) 
-	    m_insertion_position->shrink_to_fit();
-	}
-	if ( nangpositions ) m_insertion_angular_position->erase( m_il_sap );
+	      m_insertion_position->shrink_to_fit();
+	  }
+	  if ( nangpositions ) m_insertion_angular_position->erase( m_il_sap );
+        }
+	else ++m;
       }
     }
   }

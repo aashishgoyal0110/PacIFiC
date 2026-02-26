@@ -174,6 +174,8 @@ class Grains : public ComputingTime, public SolverComputingTime
     	position in m_insertion_angular_position */	
     size_t m_insertion_frequency; /**< Insertion attempted every 
     	m_insertion_frequency time steps */
+    size_t m_insertion_attempts; /**< Number of insertion attempts at each time
+    	insertion is attempted */
     bool m_force_insertion; /**< Force insertion even in case of contact with
     	other components */
     double m_RandomMotionCoefTrans; /**< maximum magnitude of translational 

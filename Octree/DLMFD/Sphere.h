@@ -2,15 +2,17 @@
 # Set of functions for a sphere
 */
 
+# include "foreach_region_plusplus.h"
+
 
 /** Tests whether a point lies inside the sphere */
 //----------------------------------------------------------------------------
-bool is_in_Sphere_clone( const double x, const double y, const double z,
-	GeomParameter const* gcp )
+bool is_in_Sphere_geomtest( const double x, const double y, const double z,
+	const coord center, const double radius )
 //----------------------------------------------------------------------------
 {
-  return ( sqrt( sq( x - gcp->center.x ) + sq( y - gcp->center.y )
-    	+ sq( z - gcp->center.z ) ) < gcp->radius );
+  return ( sqrt( sq( x - center.x ) + sq( y - center.y )
+    	+ sq( z - center.z ) ) < radius );
 }
 
 
@@ -24,54 +26,17 @@ bool is_in_Sphere( const double x, const double y, const double z,
 //----------------------------------------------------------------------------
 {
   // Check if it is in the master rigid body
-  bool status = is_in_Sphere_clone( x, y, z, gcp );
+  bool status = is_in_Sphere_geomtest( x, y, z, gcp->center, gcp->radius );
 
   // Check if it is in any clone rigid body
   if ( gcp->nperclones && !status )
     for (int i = 0; i < gcp->nperclones && !status; i++)
-    {
-      GeomParameter clone = *gcp;
-      clone.center = gcp->perclonecenters[i];
-      status = is_in_Sphere_clone( x, y, z, &clone );
-    }
+      status = is_in_Sphere_geomtest( x, y, z, gcp->perclonecenters[i], 
+      	gcp->radius );
 
   return ( status );
 }
 
-
-
-
-/** Tests whether a point lies inside the sphere or any of its 
-periodic clones and assign the proper center of mass coordinates associated to
-this point */
-//----------------------------------------------------------------------------
-bool in_which_Sphere( double x1, double y1, double z1,
-	GeomParameter const* gcp, vector* pPeriodicRefCenter, 
-	const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  // Check if it is in the master rigid body
-  bool status = is_in_Sphere_clone( x1, y1, z1, gcp );
-  if ( status && setPeriodicRefCenter )
-    foreach_point( x1, y1, z1 )
-      foreach_dimension()
-        pPeriodicRefCenter->x[] = gcp->center.x;
-
-  //  Check if it is in any clone rigid body
-  if ( gcp->nperclones && !status )
-    for (int i = 0; i < gcp->nperclones && !status; i++) 
-    {
-      GeomParameter clone = *gcp;
-      clone.center = gcp->perclonecenters[i];
-      status = is_in_Sphere_clone( x1, y1, z1, &clone );
-      if ( status && setPeriodicRefCenter )
-        foreach_point( x1, y1, z1 )
-          foreach_dimension()
-            pPeriodicRefCenter->x[] = clone.center.x;
-    }
-
-  return ( status );
-}
 
 
 
@@ -175,21 +140,47 @@ void create_FD_Interior_Sphere( RigidBody* p, vector Index,
   GeomParameter* gcp = &(p->g);
   Cache* fd = &(p->Interior);
   Point ppp;
-  
-  /** Create the cache for the interior points */
-  foreach(serial)
-    if ( in_which_Sphere( x, y, z, gcp, &PeriodicRefCenter, true ) )
-      if ( (int)Index.y[] == -1 )
-      {
-	ppp.i = point.i;
-        ppp.j = point.j;
-        ppp.k = point.k;			
-        ppp.level = point.level;
-	cache_append( fd, ppp, 0 );
-        Index.y[] = p->pnum;
-      } 
 
-  cache_shrink( fd );
+  // Loops over cells in the bounding box of the sphere
+  foreach_region_plus_plus(gcp->BBox.min, gcp->BBox.max) 
+    if ( is_leaf(cell) ) 
+      if ( is_in_Sphere_geomtest( x, y, z, gcp->center, gcp->radius ) )
+        if ( (int)Index.y[] == -1 )
+        {
+          foreach_dimension() PeriodicRefCenter.x[] = gcp->center.x;
+	  ppp.i = point.i;
+          ppp.j = point.j;
+          ppp.k = point.k;			
+          ppp.level = point.level;
+	  cache_append( fd, ppp, 0 );
+          Index.y[] = p->pnum;
+        } 
+	
+  // Loops over cells in the bounding box of its clones
+  AABB cloneBBox;
+  coord shift;
+  for (size_t i = 0; i < gcp->nperclones; i++)
+  {
+    foreach_dimension() shift.x = gcp->perclonecenters[i].x - gcp->center.x; 
+    assign_shifted_BBox( &cloneBBox, &(gcp->BBox), shift );
+    foreach_region_plus_plus(cloneBBox.min, cloneBBox.max) 
+      if ( is_leaf(cell) )     
+        if ( is_in_Sphere_geomtest( x, y, z, gcp->perclonecenters[i], 
+		gcp->radius ) )
+          if ( (int)Index.y[] == -1 )
+          {
+            foreach_dimension() 
+	      PeriodicRefCenter.x[] = gcp->perclonecenters[i].x;
+	    ppp.i = point.i;
+            ppp.j = point.j;
+            ppp.k = point.k;			
+            ppp.level = point.level;
+	    cache_append( fd, ppp, 0 );
+            Index.y[] = p->pnum;
+          }
+  }   		     
+
+  cache_shrink( fd );  
 }
 
 

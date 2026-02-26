@@ -2,15 +2,16 @@
 # Set of functions for a 2D circular cylinder 
 */
 
+# include "foreach_region_plusplus.h"
+
 
 /** Tests whether a point lies inside the 2D circular cylinder */
 //----------------------------------------------------------------------------
-bool is_in_CircularCylinder2D_clone( const double x, const double y, 
-	GeomParameter const* gcp )
+bool is_in_CircularCylinder2D_geomtest( const double x, const double y, 
+	const coord center, const double radius )
 //----------------------------------------------------------------------------
 {
-  return ( sqrt( sq( x - gcp->center.x ) + sq( y - gcp->center.y ) ) 
-  	< gcp->radius );
+  return ( sqrt( sq( x - center.x ) + sq( y - center.y ) ) < radius );
 }
 
 
@@ -24,51 +25,14 @@ bool is_in_CircularCylinder2D( const double x, const double y,
 //----------------------------------------------------------------------------
 {
   // Check if it is in the master rigid body
-  bool status = is_in_CircularCylinder2D_clone( x, y, gcp );
+  bool status = is_in_CircularCylinder2D_geomtest( x, y, gcp->center, 
+  	gcp->radius );
 
   // Check if it is in any clone rigid body
   if ( gcp->nperclones && !status )
     for (int i = 0; i < gcp->nperclones && !status; i++)
-    {
-      GeomParameter clone = *gcp;
-      clone.center = gcp->perclonecenters[i];
-      status = is_in_CircularCylinder2D_clone( x, y, &clone );
-    }
-
-  return ( status );
-}
-
-
-
-
-/** Tests whether a point lies inside the 2D circular cylinder or any of its 
-periodic clones and assign the proper center of mass coordinates associated to
-this point */
-//----------------------------------------------------------------------------
-bool in_which_CircularCylinder2D( double x1, double y1, 
-	GeomParameter const* gcp, vector* pPeriodicRefCenter, 
-	const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  // Check if it is in the master rigid body
-  bool status = is_in_CircularCylinder2D_clone( x1, y1, gcp );
-  if ( status && setPeriodicRefCenter )
-    foreach_point( x1, y1 )
-      foreach_dimension()
-        pPeriodicRefCenter->x[] = gcp->center.x;
-
-  //  Check if it is in any clone rigid body
-  if ( gcp->nperclones && !status )
-    for (int i = 0; i < gcp->nperclones && !status; i++) 
-    {
-      GeomParameter clone = *gcp;
-      clone.center = gcp->perclonecenters[i];
-      status = is_in_CircularCylinder2D_clone( x1, y1, &clone );
-      if ( status && setPeriodicRefCenter )
-        foreach_point( x1, y1 )
-          foreach_dimension()
-	    pPeriodicRefCenter->x[] = clone.center.x;
-    }
+      status = is_in_CircularCylinder2D_geomtest( x, y, gcp->perclonecenters[i], 
+      	gcp->radius );
 
   return ( status );
 }
@@ -130,17 +94,42 @@ void create_FD_Interior_CircularCylinder2D( RigidBody* p, vector Index,
   Cache* fd = &(p->Interior);
   Point ppp;
 
-  /** Create the cache for the interior points */
-  foreach(serial)
-    if ( in_which_CircularCylinder2D( x, y, gcp, &PeriodicRefCenter, true ) )
-      if ( (int)Index.y[] == -1 )
-      {
-	ppp.i = point.i;
-        ppp.j = point.j;		
-        ppp.level = point.level;
-	cache_append( fd, ppp, 0 );
-        Index.y[] = p->pnum;
-      }
+  // Loops over cells in the bounding box of the sphere
+  foreach_region_plus_plus(gcp->BBox.min, gcp->BBox.max) 
+    if ( is_leaf(cell) ) 
+      if ( is_in_CircularCylinder2D_geomtest( x, y, gcp->center, gcp->radius ) )
+        if ( (int)Index.y[] == -1 )
+        {
+          foreach_dimension() PeriodicRefCenter.x[] = gcp->center.x;
+	  ppp.i = point.i;
+          ppp.j = point.j;			
+          ppp.level = point.level;
+	  cache_append( fd, ppp, 0 );
+          Index.y[] = p->pnum;
+        } 
+	
+  // Loops over cells in the bounding box of its clones
+  AABB cloneBBox;
+  coord shift;
+  for (size_t i = 0; i < gcp->nperclones; i++)
+  {
+    foreach_dimension() shift.x = gcp->perclonecenters[i].x - gcp->center.x; 
+    assign_shifted_BBox( &cloneBBox, &(gcp->BBox), shift );
+    foreach_region_plus_plus(cloneBBox.min, cloneBBox.max) 
+      if ( is_leaf(cell) )     
+        if ( is_in_CircularCylinder2D_geomtest( x, y, gcp->perclonecenters[i], 
+		gcp->radius ) )
+          if ( (int)Index.y[] == -1 )
+          {
+            foreach_dimension() 
+	      PeriodicRefCenter.x[] = gcp->perclonecenters[i].x;
+	    ppp.i = point.i;
+            ppp.j = point.j;		
+            ppp.level = point.level;
+	    cache_append( fd, ppp, 0 );
+            Index.y[] = p->pnum;
+          }
+  }
 
   cache_shrink( fd );
 }

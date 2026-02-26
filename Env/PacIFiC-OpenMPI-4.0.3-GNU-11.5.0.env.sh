@@ -56,7 +56,7 @@ echo -e '  '
 
 # Serial compiler and low level librairies
 export PACIFIC_SERCOMPIL_ENV="GNU"
-export PACIFIC_SERCOMPIL_VERSION="11.4.1"
+export PACIFIC_SERCOMPIL_VERSION="11.5.0"
 if [[ "${PACIFIC_SERCOMPIL_ENV}" == "GNU" ]] 
 then
   PACIFIC_SERCOMPIL_C=$(which gcc)

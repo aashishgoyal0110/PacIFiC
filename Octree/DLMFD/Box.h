@@ -4,6 +4,7 @@
 
 # include "Polyhedron.h"
 
+
 /** Computes the number of boundary points on the surface of the box */
 //----------------------------------------------------------------------------
 void compute_nboundary_Box( GeomParameter const* gcp, int* nb )

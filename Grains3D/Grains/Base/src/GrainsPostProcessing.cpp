@@ -15,6 +15,7 @@ GrainsPostProcessing::GrainsPostProcessing()
   : Grains()
 {
   m_global_porosity = NULL;
+  m_free_surface = NULL;
 }
 
 
@@ -23,7 +24,10 @@ GrainsPostProcessing::GrainsPostProcessing()
 // ----------------------------------------------------------------------------
 // Destructor
 GrainsPostProcessing::~GrainsPostProcessing()
-{}
+{
+  if ( m_global_porosity ) delete m_global_porosity;
+  if ( m_free_surface ) delete m_free_surface;
+}
 
 
 
@@ -268,6 +272,229 @@ void GrainsPostProcessing::Simulation( double time_interval )
     cout << "Average porosity = " << porosity << endl;
     cout << endl;    	
   }
+  
+
+  // Free surface
+  if ( m_free_surface )
+  {  
+    list<Cell*> cells;
+    list<Cell*>::const_iterator ic;    
+    bool found = false, stop_min_height = false;  
+    double dl = m_free_surface->dl;
+    ofstream f( m_free_surface->filename.c_str(), ios::out );    
+    
+    if ( m_free_surface->domain.getType() == WINDOW_CYLINDER )
+    {      
+      Point3 center = *(m_free_surface->domain.getPointA()), p(center) ;
+      size_t ntheta = m_free_surface->n1, nr = m_free_surface->n0, i, j, k,
+      	offset = 0, nstop = 0, m = 0, nlevels = m_free_surface->nlevels;      
+      double radius = m_free_surface->domain.getRadius();
+      double min_height = m_free_surface->min_height; 
+      double sum = 0., val;
+      double dtheta = 2. * PI / double(ntheta), dr = radius / double(nr);
+      size_t nbpts = ntheta * nr + 1, nbcells = nr * ntheta;
+      double* pheight = new double[nbpts];  
+  
+      f << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" "
+    	<< "byte_order=\"LittleEndian\">" << endl;
+      f << "<UnstructuredGrid>" << endl;
+      f << "<Piece NumberOfPoints=\"" << nbpts << "\""
+    	<< " NumberOfCells=\"" << nbcells << "\">" << endl;
+      f << "<Points>" << endl;
+      f << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" "
+  	"format=\"ascii\">" << endl;  
+  
+      // Center      
+      for (k=0;k<nlevels && !stop_min_height;++k)
+      {
+        found = false;
+        while( !found )
+        {
+          p[Z] -= dl * pow( 0.1, double(k) );
+          cells = m_collision->getCellAndCellNeighborhood( p );
+          found = false;
+          for (ic=cells.begin();ic!=cells.end() && !found;ic++)
+            found = (*ic)->isInParticle( p );
+          if ( p[Z] <= min_height ) 
+	    {found = true; stop_min_height = true; ++nstop;}  
+        }
+	p[Z] += dl * pow( 0.1, double(k) );	
+      }
+            
+      pheight[m] = p[Z];
+      ++m;      
+      f << GrainsExec::doubleToString( ios::scientific, FORMAT6DIGITS,
+	p[X] ) << " " << GrainsExec::doubleToString( ios::scientific, 
+	FORMAT6DIGITS, p[Y] ) << " " <<	GrainsExec::doubleToString( 
+	ios::scientific, FORMAT6DIGITS, p[Z] ) << endl;
+
+      for (i=0;i<nr;++i)
+      {    
+        for (j=0;j<ntheta;j++)
+        {
+          p[X] = center[X] + ( double(i) + 0.5 ) * dr 
+      		* cos( ( double(j) + 0.5 ) * dtheta );
+          p[Y] = center[Y] + ( double(i) + 0.5 ) * dr 
+      		* sin( ( double(j) + 0.5 ) * dtheta ); 
+          p[Z] = center[Z]; 
+      
+          stop_min_height = false;
+
+          for (k=0;k<nlevels && !stop_min_height;++k)
+          {
+            found = false;
+            while( !found )
+            {
+              p[Z] -= dl * pow( 0.1, double(k) );
+              cells = m_collision->getCellAndCellNeighborhood( p );
+              found = false;
+              for (ic=cells.begin();ic!=cells.end() && !found;ic++)
+                found = (*ic)->isInParticle( p );
+              if ( p[Z] <= min_height ) 
+	        {found = true; stop_min_height = true; ++nstop;}  
+            }
+	    p[Z] += dl * pow( 0.1, double(k) );	
+          }	  
+	  
+          pheight[m] = p[Z];
+          ++m;            
+          f << GrainsExec::doubleToString( ios::scientific, FORMAT6DIGITS,
+		p[X] ) << " " << GrainsExec::doubleToString( ios::scientific, 
+		FORMAT6DIGITS, p[Y] ) << " " <<	GrainsExec::doubleToString( 
+		ios::scientific, FORMAT6DIGITS, p[Z] ) << endl;         
+        }                    
+      }
+      f << "</DataArray>" << endl;
+      f << "</Points>" << endl;
+      f << "<Cells>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" 
+  	<< endl;
+      for (i=0;i<ntheta;++i) 
+        f << "0 " << i + 1 << " " << ( (i + 1) % ntheta + 1 ) << " " ;
+      for (i=0;i<nr-1;++i)  
+        for (j=0;j<ntheta;j++)
+        {
+          f << i * ntheta + j + 1 << " " << ( i + 1 ) * ntheta + j + 1 << " " 
+      		<< ( i + 1 ) * ntheta + ( (j+1) % ntheta ) + 1 << " " 
+		<< i * ntheta + ( (j+1) % ntheta ) + 1 << " ";
+        }        
+      f << endl;    
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" 
+      	<< endl;
+      for (i=0;i<ntheta;++i) {offset+=3; f << offset << " ";}
+      for (i=0;i<(nr-1)*ntheta;++i) {offset+=4; f << offset << " ";}
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"types\" format=\"ascii\">" << endl;
+      for (i=0;i<ntheta;++i) f << "5 ";
+      for (i=0;i<(nr-1)*ntheta;++i) f << "9 ";
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "</Cells>" << endl;    
+      f << "</Piece>" << endl;
+      f << "</UnstructuredGrid>" << endl;  
+      f << "</VTKFile>" << endl;
+      f.close(); 
+  
+      sum = pheight[0] * PI * pow( dr, 2. );
+      for (i=0;i<nr-1;++i)  
+        for (j=0;j<ntheta;j++)
+        {
+          val = 0.25 * ( pheight[i * ntheta + j + 1] +
+		pheight[( i + 1 ) * ntheta + j + 1] +
+      		pheight[( i + 1 ) * ntheta + ( (j+1) % ntheta ) + 1] +
+		pheight[i * ntheta + ( (j+1) % ntheta ) + 1] );
+          sum += val * ( double(i) + 1.5 ) * dr * dr * dtheta; 
+        } 
+      sum /= PI * pow( radius, 2. ); 
+  
+      cout << "Number of stops at minimal height = " << nstop << endl; 
+      cout << "Average height = " << sum << endl;
+      delete[] pheight;       
+    }
+    else if ( m_free_surface->domain.getType() == WINDOW_LINE )
+    {
+      Point3 start = *(m_free_surface->domain.getPointA()), 
+      	end = *(m_free_surface->domain.getPointB()), p ; 
+      size_t nbpts = m_free_surface->n0, i, k,
+      	offset = 0, nstop = 0, m = 0, nlevels = m_free_surface->nlevels;
+      double* pheight = new double[nbpts];
+      double min_height = m_free_surface->min_height, sum = 0.; 
+      Vector3 ds = ( end - start ) / double(nbpts - 1);
+	
+      f << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" "
+    	<< "byte_order=\"LittleEndian\">" << endl;
+      f << "<UnstructuredGrid>" << endl;
+      f << "<Piece NumberOfPoints=\"" << nbpts << "\""
+    	<< " NumberOfCells=\"" << nbpts - 1 << "\">" << endl;
+      f << "<Points>" << endl;
+      f << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" "
+  	"format=\"ascii\">" << endl;
+	
+      for (i=0;i<nbpts;++i)
+      {    
+        p = start + double(i) * ds;      
+        stop_min_height = false;
+
+        for (k=0;k<nlevels && !stop_min_height;++k)
+        {
+          found = false;
+          while( !found )
+          {
+            p[Z] -= dl * pow( 0.1, double(k) );
+            cells = m_collision->getCellAndCellNeighborhood( p );
+            found = false;
+            for (ic=cells.begin();ic!=cells.end() && !found;ic++)
+              found = (*ic)->isInParticle( p );
+            if ( p[Z] <= min_height ) 
+	      {found = true; stop_min_height = true; ++nstop;}  
+          }
+	  p[Z] += dl * pow( 0.1, double(k) );	
+        }	  
+	  
+        pheight[m] = p[Z];
+        ++m;            
+        f << GrainsExec::doubleToString( ios::scientific, FORMAT6DIGITS,
+		p[X] ) << " " << GrainsExec::doubleToString( ios::scientific, 
+		FORMAT6DIGITS, p[Y] ) << " " <<	GrainsExec::doubleToString( 
+		ios::scientific, FORMAT6DIGITS, p[Z] ) << endl;         
+      }                    
+      f << "</DataArray>" << endl;
+      f << "</Points>" << endl;
+      f << "<Cells>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" 
+  	<< endl;
+      for (i=0;i<nbpts-1;++i) 
+        f << i << " " << i + 1 << " ";
+      f << endl;    
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" 
+      	<< endl;
+      for (i=0;i<nbpts-1;++i) {offset+=2; f << offset << " ";}
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"types\" format=\"ascii\">" << endl;
+      for (i=0;i<nbpts-1;++i) f << "3 ";
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "</Cells>" << endl;    
+      f << "</Piece>" << endl;
+      f << "</UnstructuredGrid>" << endl;  
+      f << "</VTKFile>" << endl;
+      f.close(); 
+  
+      for (i=0;i<nbpts-1;++i)
+        sum += 0.5 * ( pheight[i] + pheight[i+1] ); 
+      sum /= double(nbpts - 1) ; 
+  
+      cout << "Number of stops at minimal height = " << nstop << endl; 
+      cout << "Average height = " << sum << endl;
+      delete[] pheight;	  		
+    }
+
+    f.close();   
+  }  
 }
 
 
@@ -522,6 +749,7 @@ void GrainsPostProcessing::AdditionalFeatures( DOMElement* rootElement )
     	"PostProcessing" );
     if ( nPostProcessing )
     {
+      // Global porosity
       DOMNode* nGlobalPoro = ReaderXML::getNode( nPostProcessing, 
     	"GlobalPorosity" );
       if ( nGlobalPoro ) 
@@ -548,6 +776,39 @@ void GrainsPostProcessing::AdditionalFeatures( DOMElement* rootElement )
 		<< m_global_porosity->nintervals[1] << " x "
 		<< m_global_porosity->nintervals[2] << endl;			
       }
+      
+      // Free surface (in Z only for now)
+      DOMNode* nFreeSurface = ReaderXML::getNode( nPostProcessing, 
+    	"FreeSurface" );
+      if ( nFreeSurface ) 
+      {
+        cout << GrainsExec::m_shift6 << "Free surface" 
+      		<< endl;
+	m_free_surface = new struct FreeSurface;
+	
+        // Domain features
+        DOMNode* nWindow = ReaderXML::getNode( nFreeSurface, "Window" ); 
+	bool ok = m_free_surface->domain.readWindow( nWindow, 
+		GrainsExec::m_shift9, m_rank );
+	if ( !ok ) grainsAbort();
+	
+	// Additional features
+	m_free_surface->n0 = size_t(ReaderXML::getNodeAttr_Int( 
+		nFreeSurface, "N0" ));
+	m_free_surface->n1 = 0;
+	if ( m_free_surface->domain.getType() != WINDOW_LINE )	
+	  m_free_surface->n1 = size_t(ReaderXML::getNodeAttr_Int( 
+		nFreeSurface, "N1" ));
+	m_free_surface->dl = ReaderXML::getNodeAttr_Double( 
+		nFreeSurface, "Step" );		
+	m_free_surface->min_height = ReaderXML::getNodeAttr_Double( 
+		nFreeSurface, "MinHeight" );
+	m_free_surface->filename = ReaderXML::getNodeAttr_String( 
+		nFreeSurface, "RootName" );
+	m_free_surface->nlevels = size_t(ReaderXML::getNodeAttr_Int( 
+		nFreeSurface, "Levels" ));		
+	m_free_surface->filename += ".vtu";		
+      }      
     }
     else
       if ( m_rank == 0 ) cout << GrainsExec::m_shift6 

@@ -63,6 +63,15 @@ enum RigidBodyType {
 };
 
 
+
+
+/** Structure for an axis-aligned bounding box */
+typedef struct {
+  coord min;
+  coord max;
+} AABB;
+
+
  
 
 /** Structure for the rigid body boundary points */
@@ -118,8 +127,7 @@ typedef struct {
 /** Rigid body geometric parameters */
 typedef struct {
   coord center;
-  coord BBmin;
-  coord BBmax;
+  AABB BBox;
   coord* perclonecenters;  
   double radius;
   int ncorners;
@@ -640,6 +648,21 @@ void compute_inertia_inv_inertia( RigidBody* p, RigidBody const* rbref )
   inverse3by3matrix__( MIbMt, p->Ip_inv );  
 }
 
+
+
+
+/** Assign the shifted coordinates of a AABB to another AABB */
+//----------------------------------------------------------------------------
+void assign_shifted_BBox( AABB* shifted, AABB const* original, 
+	coord const shift )
+//----------------------------------------------------------------------------
+{
+  foreach_dimension()
+  {
+    shifted->min.x = original->min.x + shift.x;
+    shifted->max.x = original->max.x + shift.x;    
+  }
+}
 
  
 # include "CircularCylinder2D.h"

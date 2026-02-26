@@ -2,12 +2,12 @@
 # Set of functions for a 3D circular cylinder 
 */
 
+# include "foreach_region_plusplus.h"
 
-# include "Polyhedron.h"
 
 /** Tests whether a point lies inside the 3D circular cylinder */
 //----------------------------------------------------------------------------
-bool is_in_CircularCylinder3D_clone( const double x, const double y, 
+bool is_in_CircularCylinder3D_geomtest( const double x, const double y, 
 	const double z, GeomParameter const* gcp )
 //----------------------------------------------------------------------------
 {
@@ -38,7 +38,7 @@ bool is_in_CircularCylinder3D( const double x1, const double y1,
 //----------------------------------------------------------------------------
 {
   // Check if it is in the master rigid body
-  bool status = is_in_CircularCylinder3D_clone( x1, y1, z1, gcp );
+  bool status = is_in_CircularCylinder3D_geomtest( x1, y1, z1, gcp );
 
   double x2, y2, z2;
 
@@ -51,47 +51,7 @@ bool is_in_CircularCylinder3D( const double x1, const double y1,
       x2 = x1 + gcp->center.x - clone.center.x;
       y2 = y1 + gcp->center.y - clone.center.y;
       z2 = z1 + gcp->center.z - clone.center.z;
-      status = is_in_CircularCylinder3D_clone( x2, y2, z2, gcp );
-    }
-
-  return ( status );
-}
-
-
-
-
-/** Tests whether a point lies inside the 3D circular cylinder or any of its 
-periodic clones and assign the proper center of mass coordinates associated to
-this point */
-//----------------------------------------------------------------------------
-bool in_which_CircularCylinder3D( double x1, double y1, double z1, 
-	GeomParameter const* gcp, vector* pPeriodicRefCenter, 
-	const bool setPeriodicRefCenter )
-//----------------------------------------------------------------------------
-{
-  // Check if it is in the master rigid body
-  bool status = is_in_CircularCylinder3D_clone( x1, y1, z1, gcp );    
-  if ( status && setPeriodicRefCenter )
-    foreach_point( x1, y1, z1 )
-      foreach_dimension()
-        pPeriodicRefCenter->x[] = gcp->center.x;
-
-  double x2, y2, z2;
-
-  // Check if it is in any clone rigid body
-  if ( gcp->nperclones && !status )
-    for (int i = 0; i < gcp->nperclones && !status; i++) 
-    {
-      GeomParameter clone = *gcp;
-      clone.center = gcp->perclonecenters[i];
-      x2 = x1 + gcp->center.x - clone.center.x;
-      y2 = y1 + gcp->center.y - clone.center.y;
-      z2 = z1 + gcp->center.z - clone.center.z;
-      status = is_in_CircularCylinder3D_clone( x2, y2, z2, gcp );
-      if ( status && setPeriodicRefCenter )
-        foreach_point( x1, y1, z1 )
-          foreach_dimension()
-            pPeriodicRefCenter->x[] = clone.center.x;
+      status = is_in_CircularCylinder3D_geomtest( x2, y2, z2, gcp );
     }
 
   return ( status );
@@ -275,18 +235,50 @@ void create_FD_Interior_CircularCylinder3D( RigidBody* p, vector Index,
   Cache* fd = &(p->Interior);
   Point ppp;
 
-  /** Create the cache of the interior points of the polyhedron */
-  foreach(serial)
-    if ( in_which_CircularCylinder3D( x, y, z, gcp, &PeriodicRefCenter, true ) )
-      if ( (int)Index.y[] == -1 )
-      {
-	ppp.i = point.i;
-        ppp.j = point.j;
-        ppp.k = point.k;			
-        ppp.level = point.level;
-	cache_append( fd, ppp, 0 );
-	Index.y[] = p->pnum;
+  // Loops over cells in the bounding box of the sphere
+  foreach_region_plus_plus(gcp->BBox.min, gcp->BBox.max) 
+    if ( is_leaf(cell) ) 
+      if ( is_in_CircularCylinder3D_geomtest( x, y, z, gcp ) )
+        if ( (int)Index.y[] == -1 )
+        {
+          foreach_dimension() PeriodicRefCenter.x[] = gcp->center.x;
+	  ppp.i = point.i;
+          ppp.j = point.j;
+          ppp.k = point.k;			
+          ppp.level = point.level;
+	  cache_append( fd, ppp, 0 );
+          Index.y[] = p->pnum;
+        }
+
+  double x2, y2, z2;
+
+  // Loops over cells in the bounding box of its clones
+  AABB cloneBBox;
+  coord shift;
+  for (size_t i = 0; i < gcp->nperclones; i++)
+  {
+    foreach_dimension() shift.x = gcp->perclonecenters[i].x - gcp->center.x; 
+    assign_shifted_BBox( &cloneBBox, &(gcp->BBox), shift );
+    foreach_region_plus_plus(cloneBBox.min, cloneBBox.max) 
+      if ( is_leaf(cell) ) 
+      {    
+        x2 = x - shift.x;
+        y2 = y - shift.y;
+        z2 = z - shift.z;        
+	if ( is_in_CircularCylinder3D_geomtest( x2, y2, z2, gcp ) )
+          if ( (int)Index.y[] == -1 )
+          {
+            foreach_dimension() 
+	      PeriodicRefCenter.x[] = gcp->perclonecenters[i].x;
+	    ppp.i = point.i;
+            ppp.j = point.j;
+            ppp.k = point.k;			
+            ppp.level = point.level;
+	    cache_append( fd, ppp, 0 );
+            Index.y[] = p->pnum;
+          }
       }
+  }
 
   cache_shrink( fd );
 }

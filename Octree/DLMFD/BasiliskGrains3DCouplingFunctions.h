@@ -286,6 +286,12 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
 #   else
       gg->center.z = 0.;      
 #   endif
+    gg->BBox.min.x = bbminx;
+    gg->BBox.min.y = bbminy;    
+    gg->BBox.min.z = bbminz;    
+    gg->BBox.max.x = bbmaxx;
+    gg->BBox.max.y = bbmaxy;    
+    gg->BBox.max.z = bbmaxz;        
     if ( allrbs[k].type != OBSTACLE )
     {
 #     if TRANSLATION
@@ -475,7 +481,7 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
         break;  	  
 	        
       default:
-        fprintf( stderr, "Unknown ncorners in UpdateParticlesBasilisk!!\n" );
+        printf( "Unknown shape in UpdateParticlesBasilisk!!\n" );
     }                               
   }
   

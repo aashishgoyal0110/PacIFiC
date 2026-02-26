@@ -44,6 +44,7 @@ Grains::Grains()
   , m_insertion_angular_position( NULL )
   , m_i_sp( 0 )  
   , m_insertion_frequency( 1 )
+  , m_insertion_attempts( 1 )
   , m_force_insertion( false )
   , m_RandomMotionCoefTrans( 0. )
   , m_RandomMotionCoefRot( 0. )
@@ -1362,10 +1363,16 @@ void Grains::AdditionalFeatures( DOMElement* rootElement )
       DOMNode* nFrequency = ReaderXML::getNode( nInsertion,
       	"Frequency" );
       if ( nFrequency )
+      {
         m_insertion_frequency = size_t(
 		ReaderXML::getNodeAttr_Int( nFrequency, "TryEvery" ));
+	if ( ReaderXML::hasNodeAttr( nFrequency, "NbAttempts" ) )
+	  m_insertion_attempts = size_t(
+		ReaderXML::getNodeAttr_Int( nFrequency, "NbAttempts" ));
+      }
       if ( m_rank == 0 ) cout << GrainsExec::m_shift9 << "Insertion "
-      	"frequency = " << m_insertion_frequency << endl;
+      	"frequency = " << m_insertion_frequency << " Number of attemtps = "
+	<< m_insertion_attempts << endl;
 
 
       // Force insertion
@@ -2070,70 +2077,74 @@ Point3 Grains::getInsertionPoint()
 bool Grains::insertParticle( PullMode const& mode )
 {
   static size_t insert_counter = 0;
-  bool insert = true;
+  bool insert = false;
   Vector3 vtrans, vrot ;
   Quaternion qrot;
-  size_t npositions = m_insertion_position->size();
-  size_t nangpositions = m_insertion_angular_position->size();  
+  size_t npositions = m_insertion_position->size(), 
+  	nangpositions = m_insertion_angular_position->size(), m = 0; 
 
   if ( insert_counter == 0 )
   {
     Particle *particle = m_allcomponents.getParticleToInsert( mode );
     if ( particle )
     {
-      // Initialisation of the centre of mass position of the particle
-      particle->setPosition( getInsertionPoint() );
-
-      // Initialisation of the angular position of the particle
-      // Rem: we compose to the right by a pure rotation as the particle
-      // already has a non-zero position that we do not want to change (and
-      // that we would change if we would compose to the left)
-      if ( m_init_angpos != IAP_FIXED )
+      while( !insert && m < m_insertion_attempts )
       {
-        Transform trot;
-	if ( m_init_angpos == IAP_RANDOM ) 
-          trot.setBasis( GrainsExec::RandomRotationMatrix( m_dimension ) );
-	else // m_init_angpos == IAP_FILE
-	{
-	  m_il_sap = m_insertion_angular_position->begin();
-	  trot.setBasis( *m_il_sap );
-	}
-        particle->composePositionRightByTransform( trot );
-      }
+        // Initialisation of the centre of mass position of the particle
+        particle->setPosition( getInsertionPoint() );
 
-      // Initialisation of the particle velocity
-      computeInitVit( vtrans, vrot );
-      particle->setTranslationalVelocity( vtrans );
-      particle->setAngularVelocity( vrot );
+        // Initialisation of the angular position of the particle
+        // Rem: we compose to the right by a pure rotation as the particle
+        // already has a non-zero position that we do not want to change (and
+        // that we would change if we would compose to the left)
+        if ( m_init_angpos != IAP_FIXED )
+        {
+          Transform trot;
+	  if ( m_init_angpos == IAP_RANDOM ) 
+            trot.setBasis( GrainsExec::RandomRotationMatrix( m_dimension ) );
+	  else // m_init_angpos == IAP_FILE
+	  {
+	    m_il_sap = m_insertion_angular_position->begin();
+	    trot.setBasis( *m_il_sap );
+	  }
+          particle->composePositionRightByTransform( trot );
+        }
 
-      // Transform and quaternion
-      particle->initialize_transformWithCrust_to_notComputed();
-      qrot.setQuaternion( particle->getRigidBody()->getTransform()
+        // Initialisation of the particle velocity
+        computeInitVit( vtrans, vrot );
+        particle->setTranslationalVelocity( vtrans );
+        particle->setAngularVelocity( vrot );
+
+        // Transform and quaternion
+        particle->initialize_transformWithCrust_to_notComputed();
+        qrot.setQuaternion( particle->getRigidBody()->getTransform()
 		->getBasis() );
-      particle->setQuaternionRotation( qrot );      
+        particle->setQuaternionRotation( qrot );      
 
-      // If insertion if successful, shift particle from wait to inserted
-      insert = m_collision->insertParticleSerial( particle,
-      	m_allcomponents.getActiveParticles(),
-	m_allcomponents.getPeriodicCloneParticles(),
-	m_allcomponents.getReferenceParticles(),
-	m_periodic, m_force_insertion );
-      if ( insert )
-      {
-        m_allcomponents.WaitToActive();
-	particle->InitializeForce( true );
-	if ( npositions ) 
-	{
-	  if ( m_insertion_order == PM_RANDOM )
-	    (*m_insertion_position)[m_i_sp] = m_insertion_position->back();
-	  m_insertion_position->pop_back();
-	  if ( m_insertion_position->size() < 
+        // If insertion if successful, shift particle from wait to inserted
+        insert = m_collision->insertParticleSerial( particle,
+      		m_allcomponents.getActiveParticles(),
+		m_allcomponents.getPeriodicCloneParticles(),
+		m_allcomponents.getReferenceParticles(),
+		m_periodic, m_force_insertion );
+        if ( insert )
+        {
+          m_allcomponents.WaitToActive();
+	  particle->InitializeForce( true );
+	  if ( npositions ) 
+	  {
+	    if ( m_insertion_order == PM_RANDOM )
+	      (*m_insertion_position)[m_i_sp] = m_insertion_position->back();
+	    m_insertion_position->pop_back();
+	    if ( m_insertion_position->size() < 
 	  	size_t( 0.5 * double(m_insertion_position->capacity()) ) ) 
-	    m_insertion_position->shrink_to_fit();
-	}
-	if ( nangpositions ) m_insertion_angular_position->erase( m_il_sap );	
-      }
-    }
+	      m_insertion_position->shrink_to_fit();
+	  }
+	  if ( nangpositions ) m_insertion_angular_position->erase( m_il_sap );	
+        }
+	else ++m;
+      }	
+    }  
   }
 
   ++insert_counter;

@@ -16,6 +16,19 @@ struct GlobalPorosity
 };
 
 
+/** @brief FreeSurface */
+struct FreeSurface
+{
+  Window domain; /**< porosity domain */
+  double dl; /**< Ray tracing step */
+  double min_height; /**< Minimal height if ray tracing fails */
+  size_t n0; /**< number of grid points in direction 0 */
+  size_t n1; /**< number of grid points in direction 1 */ 
+  string filename; /**< VTU output file name */
+  size_t nlevels; /**< Number of times (minus 1 ) the step is divided by 10 */   
+};
+
+
 /** @brief The class GrainsPostProcessing.
 
     Grains3D application to postprocess the granular medium at a given time
@@ -69,7 +82,8 @@ class GrainsPostProcessing : virtual public Grains
   protected:
     /** @name Parameters */
     //@{ 
-    struct GlobalPorosity* m_global_porosity;    	       
+    struct GlobalPorosity* m_global_porosity;
+    struct FreeSurface* m_free_surface;    	       
     //@}
 
 
