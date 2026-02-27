@@ -550,6 +550,9 @@ event init (i = 0)
 # if EMBED
     event( "Compute_cs" ); 
 # endif 
+
+  // Compute the AABB of the local domain
+  compute_local_domain_AABB( &local_domain );
   
   // Simulation time interval
   maxtime = trestart + SIMUTIMEINTERVAL;
@@ -974,11 +977,14 @@ event adapt (i++)
 	
 # if EMBED
     event( "Compute_cs" ); 
-# endif
+# endif	
 
     if ( pid() == 0 ) 
       printf( "refined = %d, coarsened = %d\n", s.nf, s.nc );
 # endif
+
+  // Compute the AABB of the local domain
+  compute_local_domain_AABB( &local_domain );	
 }
 
 

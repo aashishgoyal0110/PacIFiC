@@ -134,7 +134,7 @@ void create_referenceRB_boundary_geomfeatures_Sphere(
 /** Finds cells lying inside the sphere */
 //----------------------------------------------------------------------------
 void create_FD_Interior_Sphere( RigidBody* p, vector Index,
-	vector PeriodicRefCenter )
+	vector PeriodicRefCenter, AABB const* ld )
 //----------------------------------------------------------------------------
 {
   GeomParameter* gcp = &(p->g);
@@ -142,19 +142,20 @@ void create_FD_Interior_Sphere( RigidBody* p, vector Index,
   Point ppp;
 
   // Loops over cells in the bounding box of the sphere
-  foreach_region_plus_plus(gcp->BBox.min, gcp->BBox.max) 
-    if ( is_leaf(cell) ) 
-      if ( is_in_Sphere_geomtest( x, y, z, gcp->center, gcp->radius ) )
-        if ( (int)Index.y[] == -1 )
-        {
-          foreach_dimension() PeriodicRefCenter.x[] = gcp->center.x;
-	  ppp.i = point.i;
-          ppp.j = point.j;
-          ppp.k = point.k;			
-          ppp.level = point.level;
-	  cache_append( fd, ppp, 0 );
-          Index.y[] = p->pnum;
-        } 
+  if ( intersect( ld, &(gcp->BBox) ) )
+    foreach_region_plus_plus(gcp->BBox.min, gcp->BBox.max) 
+      if ( is_leaf(cell) ) 
+        if ( is_in_Sphere_geomtest( x, y, z, gcp->center, gcp->radius ) )
+          if ( (int)Index.y[] == -1 )
+          {
+            foreach_dimension() PeriodicRefCenter.x[] = gcp->center.x;
+	    ppp.i = point.i;
+            ppp.j = point.j;
+            ppp.k = point.k;			
+            ppp.level = point.level;
+	    cache_append( fd, ppp, 0 );
+            Index.y[] = p->pnum;
+          } 
 	
   // Loops over cells in the bounding box of its clones
   AABB cloneBBox;
@@ -163,21 +164,22 @@ void create_FD_Interior_Sphere( RigidBody* p, vector Index,
   {
     foreach_dimension() shift.x = gcp->perclonecenters[i].x - gcp->center.x; 
     assign_shifted_BBox( &cloneBBox, &(gcp->BBox), shift );
-    foreach_region_plus_plus(cloneBBox.min, cloneBBox.max) 
-      if ( is_leaf(cell) )     
-        if ( is_in_Sphere_geomtest( x, y, z, gcp->perclonecenters[i], 
+    if ( intersect( ld, &cloneBBox ) )
+      foreach_region_plus_plus(cloneBBox.min, cloneBBox.max) 
+        if ( is_leaf(cell) )     
+          if ( is_in_Sphere_geomtest( x, y, z, gcp->perclonecenters[i], 
 		gcp->radius ) )
-          if ( (int)Index.y[] == -1 )
-          {
-            foreach_dimension() 
-	      PeriodicRefCenter.x[] = gcp->perclonecenters[i].x;
-	    ppp.i = point.i;
-            ppp.j = point.j;
-            ppp.k = point.k;			
-            ppp.level = point.level;
-	    cache_append( fd, ppp, 0 );
-            Index.y[] = p->pnum;
-          }
+            if ( (int)Index.y[] == -1 )
+            {
+              foreach_dimension() 
+	        PeriodicRefCenter.x[] = gcp->perclonecenters[i].x;
+	      ppp.i = point.i;
+              ppp.j = point.j;
+              ppp.k = point.k;			
+              ppp.level = point.level;
+	      cache_append( fd, ppp, 0 );
+              Index.y[] = p->pnum;
+            }
   }   		     
 
   cache_shrink( fd );  

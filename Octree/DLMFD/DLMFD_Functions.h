@@ -651,7 +651,7 @@ void compute_inertia_inv_inertia( RigidBody* p, RigidBody const* rbref )
 
 
 
-/** Assign the shifted coordinates of a AABB to another AABB */
+/** Assigns the shifted coordinates of a AABB to another AABB */
 //----------------------------------------------------------------------------
 void assign_shifted_BBox( AABB* shifted, AABB const* original, 
 	coord const shift )
@@ -661,6 +661,45 @@ void assign_shifted_BBox( AABB* shifted, AABB const* original,
   {
     shifted->min.x = original->min.x + shift.x;
     shifted->max.x = original->max.x + shift.x;    
+  }
+}
+
+
+
+
+/** Returns whether two AABB intersect */
+//----------------------------------------------------------------------------
+bool intersect( AABB const* A, AABB const* B )
+//----------------------------------------------------------------------------
+{
+  return ( ( A->min.x <= B->max.x && A->max.x >= B->min.x ) &&
+	( A->min.y <= B->max.y && A->max.y >= B->min.y ) &&
+	( A->min.z <= B->max.z && A->max.z >= B->min.z ) );
+}
+
+
+
+
+/** Computes the local domain AABB */
+//----------------------------------------------------------------------------
+void compute_local_domain_AABB( AABB* A )
+//----------------------------------------------------------------------------
+{
+  foreach_dimension()
+  {
+    A->min.x = 1.e20;
+    A->max.x = -1.e20;
+  }
+  foreach(serial)
+  {
+    A->min.x = min( x, A->min.x );
+    A->min.y = min( y, A->min.y );    
+    A->max.x = max( x, A->max.x );
+    A->max.y = max( y, A->max.y );    
+#   if dimension == 3
+      A->max.z = max( z, A->max.z );
+      A->min.z = min( z, A->min.z ); 
+#   endif           
   }
 }
 

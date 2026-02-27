@@ -96,6 +96,8 @@ FILE* cellvstime = NULL;
 dynUIarray deactivatedBPindices;
 dynPDBarray deactivatedIndexFieldValues;
 
+AABB local_domain;
+
 # include "DLMFD_ns-centered.h"
 
 
@@ -184,57 +186,57 @@ void DLMFD_construction()
       {
         case SPHERE:
 	  create_FD_Interior_Sphere( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
 	case CIRCULARCYLINDER2D:
 	  create_FD_Interior_CircularCylinder2D( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
 	case CUBE:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
         case TETRAHEDRON:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
         case OCTAHEDRON:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  		  
         case ICOSAHEDRON:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 
         case DODECAHEDRON:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
         case BOX:
 	  create_FD_Interior_Polyhedron( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
         case CIRCULARCYLINDER3D:
 	  create_FD_Interior_CircularCylinder3D( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 
         case CONE:
 	  create_FD_Interior_Cone( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;
 	  
         case TRUNCATEDCONE:
 	  create_FD_Interior_TruncatedCone( &allRigidBodies[k], DLM_Index, 
-	  	DLM_PeriodicRefCenter );
+	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;	  	  	  	  		  
 	  
 	default:
