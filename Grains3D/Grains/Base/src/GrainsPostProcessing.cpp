@@ -492,6 +492,124 @@ void GrainsPostProcessing::Simulation( double time_interval )
       cout << "Average height = " << sum << endl;
       delete[] pheight;	  		
     }
+    else if ( m_free_surface->domain.getType() == WINDOW_BOX )
+    {
+      Point3 start = *(m_free_surface->domain.getPointA()), 
+      	end = *(m_free_surface->domain.getPointB()), p ; 
+      size_t nx = m_free_surface->n0, ny = m_free_surface->n1, i, j, k,
+      	offset = 0, nstop = 0, m = 0, nlevels = m_free_surface->nlevels;
+      size_t nbpts = nx * ny, ncells = ( nx - 1 ) * ( ny - 1 );	
+      double* pheight = new double[nbpts];
+      double min_height = m_free_surface->min_height, sum = 0.; 
+      double dx = ( end[X] - start[X] ) / double(nx - 1), 
+      	dy = ( end[Y] - start[Y] ) / double(ny - 1);
+	
+      f << "<VTKFile type=\"UnstructuredGrid\" version=\"0.1\" "
+    	<< "byte_order=\"LittleEndian\">" << endl;
+      f << "<UnstructuredGrid>" << endl;
+      f << "<Piece NumberOfPoints=\"" << nbpts << "\""
+    	<< " NumberOfCells=\"" << ncells << "\">" << endl;
+      f << "<Points>" << endl;
+      f << "<DataArray type=\"Float32\" NumberOfComponents=\"3\" "
+  	"format=\"ascii\">" << endl;
+	
+      for (i=0;i<nx;++i)
+        for (j=0;j<ny;++j)
+        {    
+          p = start; 
+	  p[X] += double(i) * dx;
+	  p[Y] += double(j) * dy;     
+          stop_min_height = false;
+
+          for (k=0;k<nlevels && !stop_min_height;++k)
+          {
+            found = false;
+            while( !found )
+            {
+              p[Z] -= dl * pow( 0.1, double(k) );
+              cells = m_collision->getCellAndCellNeighborhood( p );
+              found = false;
+              for (ic=cells.begin();ic!=cells.end() && !found;ic++)
+                found = (*ic)->isInParticle( p );
+              if ( p[Z] <= min_height ) 
+	        {found = true; stop_min_height = true; ++nstop;}  
+            }
+	    p[Z] += dl * pow( 0.1, double(k) );	
+          }	  
+	  
+          pheight[m] = p[Z];
+          ++m;            
+          f << GrainsExec::doubleToString( ios::scientific, FORMAT6DIGITS,
+		p[X] ) << " " << GrainsExec::doubleToString( ios::scientific, 
+		FORMAT6DIGITS, p[Y] ) << " " <<	GrainsExec::doubleToString( 
+		ios::scientific, FORMAT6DIGITS, p[Z] ) << endl;         
+        }                    
+      f << "</DataArray>" << endl;
+      f << "</Points>" << endl;
+      f << "<Cells>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"connectivity\" format=\"ascii\">" 
+  	<< endl;
+      for (i=0;i<nx-1;++i)
+        for (j=0;j<ny-1;++j)
+        f << i * ny + j << " " << ( i + 1 ) * ny + j << " " <<
+		( i + 1 ) * ny + j + 1 << " " << i * ny + j + 1 << " ";
+      f << endl;    
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"offsets\" format=\"ascii\">" 
+      	<< endl;
+      for (i=0;i<ncells;++i) {offset+=4; f << offset << " ";}
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "<DataArray type=\"Int32\" Name=\"types\" format=\"ascii\">" << endl;
+      for (i=0;i<ncells;++i) f << "9 ";
+      f << endl;  
+      f << "</DataArray>" << endl;
+      f << "</Cells>" << endl;    
+      f << "</Piece>" << endl;
+      f << "</UnstructuredGrid>" << endl;  
+      f << "</VTKFile>" << endl;
+      f.close(); 
+  
+      for (i=0;i<nx-1;++i)
+        for (j=0;j<ny-1;++j)
+          sum += 0.25 * ( pheight[i * ny + j] + pheight[( i + 1 ) * ny + j] 
+	  	+ pheight[( i + 1 ) * ny + j + 1] + pheight[i * ny + j + 1] ); 
+      sum /= double(ncells) ; 
+  
+      cout << "Number of stops at minimal height = " << nstop << endl; 
+      cout << "Average height = " << sum << endl;
+      
+      double* maxx = new double[nx];
+      for (i=0;i<nx;++i)
+      {
+        maxx[i] = -1.e20;
+        for (j=0;j<ny;++j)
+          maxx[i] = max( pheight[i * ny + j], maxx[i] ); 
+      }
+      
+      sum = 0.;
+      for (i=0;i<nx-1;++i)
+        sum += 0.5 * ( maxx[i] + maxx[i+1] ); 
+      sum /= double(nx - 1) ;
+      cout << "Y-projected average height = " << sum << endl;             
+
+      double* maxy = new double[ny];
+      for (j=0;j<ny;++j)
+      {
+        maxy[j] = -1.e20;
+        for (i=0;i<nx;++i)
+          maxy[j] = max( pheight[i * ny + j], maxy[j] ); 
+      }
+      
+      sum = 0.;
+      for (j=0;j<ny-1;++j)
+        sum += 0.5 * ( maxy[j] + maxy[j+1] ); 
+      sum /= double(ny - 1) ;
+      cout << "X-projected average height = " << sum << endl;       
+
+      delete[] pheight;
+      delete[] maxx;	  		
+    }    
 
     f.close();   
   }  
