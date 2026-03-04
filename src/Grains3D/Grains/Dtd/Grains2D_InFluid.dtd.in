@@ -1,9 +1,9 @@
 <!-- Grains3D_InFluid DTD -->
 
-<!ENTITY % Convex.dtd SYSTEM "Convex.dtd">
+<!ENTITY % Convex.dtd SYSTEM "@CONVEX_DTD@">
 %Convex.dtd;
 
-<!ENTITY % Contact.dtd SYSTEM "Contact.dtd">
+<!ENTITY % Contact.dtd SYSTEM "@CONTACT_DTD@">
 %Contact.dtd;
 
 <!ELEMENT Point EMPTY>
