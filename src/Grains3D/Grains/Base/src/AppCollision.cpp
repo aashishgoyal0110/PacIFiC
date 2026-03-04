@@ -7,7 +7,7 @@
 #include "SimpleObstacle.hh"
 #include "Matrix.hh"
 #include "GrainsBuilderFactory.hh"
-
+#include "Data.hh"
 
 size_t AppCollision::m_allforces_blocksize = 128;
 
@@ -463,8 +463,7 @@ void AppCollision::initialiseForceStatsFiles( int rank,
   {
     if ( GrainsExec::m_ReloadType == "new" )
     {
-      string cmd = "bash " + GrainsExec::m_GRAINS_HOME
-     	+ "/Tools/ExecScripts/ForceStatsFiles_clear.exec "
+      string cmd = "bash " + get_tools_dir().string()	+ "/ExecScripts/ForceStatsFiles_clear.exec "
 	+ m_outputForceStats_dir;
       GrainsExec::m_return_syscmd = system( cmd.c_str() );
     }

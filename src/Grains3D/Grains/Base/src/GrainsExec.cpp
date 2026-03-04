@@ -1,5 +1,6 @@
 #include "GrainsExec.hh"
 #include "GrainsMPIWrapper.hh"
+#include "Data.hh"
 #include <sys/types.h>
 #include <unistd.h>
 
@@ -434,8 +435,7 @@ void GrainsExec::checkAllFilesForReload()
   {
     set<string>::iterator is;
     string fileName ;
-    string cmd = "bash " + GrainsExec::m_GRAINS_HOME
-    	+ "/Tools/ExecScripts/addFiles.exec";
+    string cmd = "bash " + get_tools_dir().string() + "/ExecScripts/addFiles.exec";
 
     for (is=m_additionalDataFiles.begin();is!=m_additionalDataFiles.end();is++)
     {

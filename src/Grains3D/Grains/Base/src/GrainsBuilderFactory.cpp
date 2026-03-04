@@ -5,6 +5,7 @@
 #include "GrainsCoupledWithFluid.hh"
 #include "GrainsPostProcessing.hh"
 #include "GrainsMPI.hh"
+#include "Data.hh"
 #include <string>
 using namespace std;
 
@@ -91,9 +92,9 @@ string GrainsBuilderFactory::init( string const& filename, int const& rank,
   GrainsExec::m_inputFile = filename;
   
   // Get the GRAINS_HOME from the shell
-  char* grainshome = getenv( "GRAINS_HOME" );
-  string str_grainshome( grainshome );
-  GrainsExec::m_GRAINS_HOME = str_grainshome;   
+  // char* grainshome = getenv( "GRAINS_HOME" );
+  // string str_grainshome( grainshome );
+  // GrainsExec::m_GRAINS_HOME = str_grainshome;   
   
   if ( rank == 0 )
   {        
@@ -105,7 +106,8 @@ string GrainsBuilderFactory::init( string const& filename, int const& rank,
     list<string> inputFile_linelist;
     int dimension = 0;
   
-    header2 += GrainsExec::m_GRAINS_HOME + "/Main/dtd/" ;
+    // header2 += GrainsExec::m_GRAINS_HOME + "/Main/dtd/" ;
+    header2 += get_dtd_dir().string();
    
     ifstream fileIN( filename.c_str(), ios::in );
     ofstream fileOUT( ( filename + ".tmp" ).c_str(), ios::out );   

@@ -10,6 +10,7 @@
 #include "RawDataPostProcessingWriter.hh"
 #include "TrilobeCylinder.hh"
 #include "QuadrilobeCylinder.hh"
+#include "Data.hh"
 #include <stdlib.h>
 #include <algorithm>
 #include <climits>
@@ -2610,8 +2611,7 @@ void Grains::clearResultXmlFiles() const
 {
   if ( m_rank == 0 )
   {
-    string cmd = "bash " + GrainsExec::m_GRAINS_HOME
-     	+ "/Tools/ExecScripts/init_clear.exec " + m_fileSave;
+    string cmd = "bash " + get_tools_dir().string() + "/ExecScripts/init_clear.exec " + m_fileSave;
     GrainsExec::m_return_syscmd = system( cmd.c_str() );
   }
 

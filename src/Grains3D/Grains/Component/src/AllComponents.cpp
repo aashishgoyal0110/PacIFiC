@@ -12,6 +12,7 @@
 #include "GrainsBuilderFactory.hh"
 #include "TrilobeCylinder.hh"
 #include "QuadrilobeCylinder.hh"
+#include "Data.hh"
 #include <math.h>
 #include <stdlib.h>
 #include <climits>
@@ -2076,9 +2077,7 @@ void AllComponents::initialiseOutputObstaclesLoadFiles( int rank,
   {
     if ( GrainsExec::m_ReloadType == "new" )
     {
-      string cmd = "bash " + GrainsExec::m_GRAINS_HOME
-     	+ "/Tools/ExecScripts/ObstaclesLoadFiles_clear.exec "
-	+ m_outputTorsorObstacles_dir;
+      string cmd = "bash " + get_tools_dir().string() + "/ExecScripts/ObstaclesLoadFiles_clear.exec " + m_outputTorsorObstacles_dir;
       GrainsExec::m_return_syscmd = system( cmd.c_str() );
     }
     else
