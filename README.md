@@ -1,4 +1,5 @@
 # Welcome to PacIFiC!
+[![Copr build status](https://copr.fedorainfracloud.org/coprs/colive/PacIFiC/package/pacific/status_image/last_build.png)](https://copr.fedorainfracloud.org/coprs/colive/PacIFiC/package/pacific/)
 
 PacIFiC is a high-performance MPI parallel c/c++ software to compute particle-laden flows at the particle scale. PacIFiC stands for "PArtiCles In FluId Computations".
 
@@ -6,9 +7,9 @@ PacIFiC is open-sourced under the MIT license, and is developed by the research 
 
 ```mermaid
 graph TD;
-  PacIFiC-->Octree;
-  PacIFiC-->Cartesian;
-  PacIFiC-->Grains3D;
+  pacific-->Octree;
+  pacific-->Cartesian;
+  pacific-->Grains3D;
   Octree-.->basilisk;
   Octree-->FDM1[DLMFD];
   Octree-->LBM;
@@ -25,104 +26,142 @@ graph TD;
   MacWorld-.->PETSc;
 ```
 
-Documentation will come soon.
 
-<!--
-## I. Installation
-There are few steps that need to be done before you can enjoy a functional installation of Pacific. First, check the installation of OpenMPI, GCC, GFORTAN, libfortran, libblas, libaltas, liblapack and libm before providing the correct path in environment file. It's important to install libfortran before building OpenMPI.
-Some ARC systems may require special commands for the environemnt variables. Please refer to Wiki page to check few examples for setting-up a environment variables. Now follow the guide once completing the preliminary steps !!!
+## Install
 
-### 1. Provide paths for your libraries in the environment file
+### Packages
+
+### Fedora
+
+On an RPM-based distro you may install from our [copr repo](https://copr.fedorainfracloud.org/coprs/colive/PacIFiC/):
+```bash
+sudo dnf copr enable colive/PacIFiC 
+sudo dnf install -y pacific-openmpi pacific-openmpi-devel
 ```
-cp Env/PacIFiC_env_template.env.sh Env/PacIFiC-temporary-env-file.env.sh
-```
+Installation on Enterprise Linux requires the `copr` plugin in addition to CodeReady Builder (CRB) and EPEL release repositories, if they have not already been enabled.
 
-Modify the file `Env/PacIFiC-temporary-env-file.env.sh` by replacing every part in between the `#`. Note that if there is a space in the path leading to the pacific folder, the routines below will most likely fail.
-
-Having modified the `Env/PacIFiC-temporary-env-file.env.sh` file, type the following:
-
+Since RPM-based distros require installation under `/usr/lib64/openmpi/` or similar, you will need to run
+```bash
+source /etc/profile.d/modules.sh
+module load mpi/openmpi-x86_64
 ```
-cd Env
-source PacIFiC-temporary-env-file.env.sh
-mv PacIFiC-temporary-env-file.env.sh PacIFiC-${PACIFIC_MPI_DISTRIB}-${PACIFIC_MPI_VERSION}-${PACIFIC_SERCOMPIL_ENV}-${PACIFIC_SERCOMPIL_VERSION}.env.sh
-source PacIFiC-${PACIFIC_MPI_DISTRIB}-${PACIFIC_MPI_VERSION}-${PACIFIC_SERCOMPIL_ENV}-${PACIFIC_SERCOMPIL_VERSION}.env.sh
-```
+Then our MPI-linked libraries and binaries become availible under `$PATH`, `$LD_LIBRARY_PATH` as well as the include path from `mpicc --showme`. You should now be able to run ``grains --version``. 
 
-### 2. Install HYPRE and PETSc
-HYPRE and PETSc are high-performace libraries that offer a wide range of state-of-the-art tools for linear algebra and multigrid solvers. In Pacific, we suggest you get HYPRE 2.10.1 and PETSc 3.2.0.
+### Ubuntu
 
-To install HYPRE 2.10.1, copy and paste the following:
+On Ubuntu, you may install from our [ppa archive](https://launchpad.net/~colive/+archive/ubuntu/pacific).
+```bash
+sudo apt-add-repository ppa:colive/pacific
+sudo apt update
+sudo apt install pacific-basilisk pacific-tools libpacific-mpi-dev
 ```
-cd $MACWORLD_ROOT
-wget https://github.com/hypre-space/hypre/archive/refs/tags/v2.10.1.zip
-unzip v2.10.1.zip
-cd hypre-2.10.1/
-cp ../extra_files/*hypre* ./
-source ${PACIFIC_HOME}/Env/PacIFiC-${PACIFIC_MPI_DISTRIB}-${PACIFIC_MPI_VERSION}-${PACIFIC_SERCOMPIL_ENV}-${PACIFIC_SERCOMPIL_VERSION}.env.sh
-./install-hypre.sh
-```
+### Apptainer
 
-Now, to install PETSc 3.2.0, copy and paste the following:
-```
-cd $MACWORLD_ROOT
-wget http://ftp.mcs.anl.gov/pub/petsc/release-snapshots/petsc-3.2-p7.tar.gz
-tar -zxvf petsc-3.2-p7.tar.gz
-mv petsc-3.2-p7 petsc-3.2.0-p7
-cd petsc-3.2.0-p7
-cp ../extra_files/*petsc* ./
-source ${PACIFIC_HOME}/Env/PacIFiC-${PACIFIC_MPI_DISTRIB}-${PACIFIC_MPI_VERSION}-${PACIFIC_SERCOMPIL_ENV}-${PACIFIC_SERCOMPIL_VERSION}.env.sh
-./install-petsc.sh
-```
+Sample container definitions may be found under `apptainer`. These images are ideal for situations where your HPC cluster may not offer some of the dependencies but do offer an apptainer module.
 
-If no error arises, you just installed the two state-of-the-art libraries for high-performance linear algebra manipulations! Just remove the compressed files:
-```
-cd $MACWORLD_ROOT
-rm -rf v2.10.1.zip petsc-3.2-p7.tar.gz
-```
+## Building 
 
+### Requirements
 
-### 3. Install Basilisk
-Now, let's install the last dependancy: Basilisk, a high-performance multiphase CFD solver on adaptive grids.
-All the instructions are extensively explained [here](https://basilisk.fr/install), but here is a summary of what you should do:
+The following depenencies are required:
 
+ * [OpenMPI](https://www.open-mpi.org/)
+ * [Xerces-C++](https://xerces.apache.org/xerces-c/)
+ * [zlib](https://www.zlib.net/)
+
+In addition, the following toolchain is required or reccomended
+ * [GCC](https://gcc.gnu.org/)  
+ * [CMake](https://cmake.org/)
+ * [Make](https://www.gnu.org/software/make/)
+
+On RPM-based distributions (e.g. RedHat, Fedora) these can be obtained using 
+```bash
+sudo dnf install -y gcc g++ make cmake git openmpi-devel xerces-c-devel zlib-ng-devel hdf5-openmpi-devel
 ```
-cd $BASILISK
-[to be completed]
+On apt-based distributions (e.g. Ubuntu, Debian), use
+```bash
+sudo apt-get install -y build-essential make cmake git libopenmpi-dev libxerces-c-dev zlib1g-dev libhdf5-openmpi-dev
 ```
 
+### Building with CMake
 
-### 4. Install Grains3D
-* To build the DEM solver Grains3D, assuming you do not already have Xerces 2.8.0, type:
-```
-cd $GRAINS_HOME
-tar zxvf xerces-2-8-0.tar.gz
-make install
-```
-It is possible that you get an error during the make install due to the missing file `zlib.h`. On Ubuntu (18.04), the development package of the zlib library can be installed with the command `sudo apt install zlib1g-dev`. Once the installation is complete, simply run the `make` command (there is no need for a make install at this point). It is also possible that the `mpicxx` executable is not found. In that case, it is most likely that the installed mpi libraries are standard. Grains3D requires the development package instead. If you use openmpi on Ubuntu (18.04), type `sudo apt install libopenmpi-dev`, and then try `make install` again.
+The PacIFiC project requires the CMake meta-build tool and a build tool. We will use ninja here. 
 
+First, create a build directory where you would like to build the system. Here, we will create a build folder in the PacIFiC root folder: To do so, configure and generate the build system by running
 
-### 5. Install Cartesian solver:
-* Build the MAC library required for fluid solver using following commands:
-```
-cd $MACWORLD_ROOT/MAC/
-source ${PACIFIC_HOME}/Env/PacIFiC-${PACIFIC_MPI_DISTRIB}-${PACIFIC_MPI_VERSION}-${PACIFIC_SERCOMPIL_ENV}-${PACIFIC_SERCOMPIL_VERSION}.env.sh
-./install-mac.sh
+```bash
+cmake -S . -B build-release -DCMAKE_BUILD_TYPE=Release
 ```
 
-* After the successful installation of MAC library, now let's install multiple numerical schemes to solve fluid:
-```
-cd ${PACIFIC_HOME}/Cartesian/FLUID
-./compil
-```
-It's done, now we have a fully functional PacIFiC.
+To build all targets in the project, simply run
 
-## II. Usage
-To be completed soon.
+```bash
+cmake --build build-release --parallel
+```
+### Installing From Source 
 
-## III. Useful tips
-* If you are running MPI jobs on `r8k1-wachs1.math.ubc.ca`, you may want to run your mpirun command with the option `--bind-to none` to let the operating system decide how to spread the jobs on the available cores. Otherwise, you may end up with all your MPI jobs sharing the same N cores instead of making full use of the 64 cores.
-* You may want to run a lot of simulations at once, and a good knowledge of bash commands will help you automatize this process. Once you have N simulation folders named "folder1", ..., "folderN" ready to go, consider "stuffing" instructions in a detached screen as follows:
- `for i in {1..N}; do screen -S simu$i -d -m; screen -r simu$i -X stuff " cd folder$i \n source [path to pacific environment file] \n grains_mpi 3 Grains/Init/insert.xml \n grains_mpi 3 Grains/Simu/simul.xml \n "; sleep 30.; done`
-  where in this example, the code Grains3D is used in MPI on 3 cores twice in a row - using the `insert.xml` input file first, then the `simul.xml` input file. The `sleep` command is not necessary, but in case your simulations use a clock-generated seed for randomness (as it is the case with Grains3D in the "Aleatoire total" particle insertion mode), it ensures the same seed won't be used twice and you won't end up with N times the same simulation.
-  Good practice is to be more descriptive than this example for the name of your screen session and simulation folders, for instance "dam_break_aspect_ratio_$i" instead of "simu$i" and "folder$i".
--->
+If you wish to install to your system, run
+
+```bash
+sudo cmake --build build --target install
+```
+
+## Examples
+
+Some examples may be found in `examples`: These can be relocated, and by default, use `FetchContent` to include copies of PacIFiC into their own build tree automatically. They therefore do not require installation of PacIFiC, although they still assume the project dependencies are installed.
+
+## Building on HPC
+
+### Sockeye
+
+CMake presets are provided to help build on `sockeye.arc.ubc.ca`. It is reccomended to build inside of the compute nodes, which are offline. Since these do not have internet access, we must use git submodules to recursively clone the submodules in `third_party` to ensure they are available at configure and build time. 
+
+Start by cloning the submodule into scratch
+```bash
+cd ~/scratch/user
+git clone https://github.com/anthonywachs/PacIFiC.git --recurse-submodules
+```
+Next, start an interactive shell 
+```bash
+srun --pty -A st-wachs-1 -p interactive_cpu -t 00:10:00 -N 1 -c 8 --mem=16G bash -l
+```
+Inside the compute node, run
+```bash
+module load gcc cmake
+cmake --preset SockeyeRelease
+cmake --build --preset SockeyeRelease
+cmake --install build/sockeye_release
+exit
+```
+Now that you are off the compute node, the installed files (including XercesC) now live inside `~/scratch/user/PacIFiC/install/sockeye_release`. You may relocate this if you'd like with 
+```bash
+mv ~/scratch/user/PacIFiC ~/project/user
+```
+By default, the binaries and libraries are not yet availible on `$PATH` or `$LD_LIBRARY_PATH`. You may either `export` these manually to add them, or alternatively, write a `lmod` file such as 
+```lua
+whatis("Name : PacIFiC")
+whatis("Version : 0.0.1")
+whatis("Target : skylake_avx512")
+whatis("Short description : Particles In Fluid Computations ")
+help([[Name   : PacIFiC]])
+help([[Version: 0.0.1]])
+help([[Target : skylake_avx512]])
+help([[.]])
+depends_on("gcc/9.4.0")
+depends_on("zlib-ng/2.0.7")
+depends_on("openmpi/4.1.1-cuda11-3")
+depends_on("hdf5/1.10.7-additional-bindings")
+prepend_path{"PATH","/home/user/project/user/PacIFiC/install/sockeye_release/bin",delim=":"}
+prepend_path{"CMAKE_PREFIX_PATH","/home/user/project/user/PacIFiC/install/sockeye_release/.",delim=":"}
+append_path{"LD_LIBRARY_PATH","/home/user/project/user/PacIFiC/install/sockeye_release/lib64",delim=":"}
+setenv("UBC_CLUSTER","sockeye")
+```
+and saving this to `$HOME/project/user/modules/PacIFiC/0.0.1.lua`. This can then be used in slurm jobs by calling 
+```bash
+module use "$HOME/project/user/modules"
+module load PacIFiC/0.0.1
+```
+
+## Documentation
+
+Additional documentation may be found by visiting the [documentation website](https://anthonywachs.github.io/PacIFiC/).

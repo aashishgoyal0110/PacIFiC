@@ -1,0 +1,30 @@
+#!/usr/bin/make -f
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --buildsystem=cmake
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DBUILD_SHARED_LIBS=ON \
+		-DCMAKE_SKIP_RPATH=ON \
+		-DCMAKE_C_COMPILER=mpicc \
+		-DCMAKE_CXX_COMPILER=mpicxx \
+		-DOCTREE_BASILISK_PROVIDER=SYSTEM
+
+
+# Prevent dh_shlibdeps / dpkg-shlibdeps from auto-generating (>= ...) deps
+# on our *own* PacIFiC shared libraries. We want internal deps to be the
+# exact-version in debian/control.
+# override_dh_shlibdeps:
+# 	dh_shlibdeps \
+# 		-Xlibpacific \
+# 		-Xpacific 
+
+override_dh_makeshlibs:
+	dh_makeshlibs -p libpacific-grains0-mpi -V 'libpacific-grains0-mpi (= $${binary:Version})'
+	dh_makeshlibs -p libpacific-fluid0-mpi -V 'libpacific-fluid0-mpi (= $${binary:Version})'
+	dh_makeshlibs -p libpacific-mac0-mpi -V 'libpacific-mac0-mpi (= $${binary:Version})'
+
