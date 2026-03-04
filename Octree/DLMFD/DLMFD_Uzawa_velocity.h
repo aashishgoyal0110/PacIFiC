@@ -238,6 +238,11 @@ void DLMFD_construction()
 	  create_FD_Interior_TruncatedCone( &allRigidBodies[k], DLM_Index, 
 	  	DLM_PeriodicRefCenter, &local_domain );
 	  break;	  	  	  	  		  
+
+        case ELLIPSOID:
+	  create_FD_Interior_Ellipsoid( &allRigidBodies[k], DLM_Index, 
+	  	DLM_PeriodicRefCenter, &local_domain );
+	  break;
 	  
 	default:
           fprintf( stderr,"Unknown Rigid Body shape !!\n" );

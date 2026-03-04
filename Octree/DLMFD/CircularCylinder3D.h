@@ -302,7 +302,7 @@ void read_reference_CircularCylinder3D( GeomParameter* gcp,
   token = strtok(NULL, " " );
   sscanf( token, "%lu", &np );
   if ( np != 3 )
-    printf ("Error in number of points in update_CircularCylinder3D\n");
+    printf ("Error in number of points in read_reference_CircularCylinder3D\n");
     
   // Allocate the CylGeomParameter structure
   gcp->cgp = (CylGeomParameter*) malloc( sizeof(CylGeomParameter) );

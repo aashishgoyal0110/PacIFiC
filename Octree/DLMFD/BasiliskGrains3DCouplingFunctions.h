@@ -479,6 +479,10 @@ char* UpdateParticlesBasilisk( char* pstr, const int pstrsize,
       case CIRCULARCYLINDER2D: 
 	update_CircularCylinder2D_from_RBRef( gg, RBRef );
         break;  	  
+
+      case ELLIPSOID: 
+	update_Ellipsoid_from_RBRef( gg, RBRef, allrbs[k].RotMat );
+        break; 
 	        
       default:
         printf( "Unknown shape in UpdateParticlesBasilisk!!\n" );
@@ -763,6 +767,11 @@ char* CreateReferenceRBBasilisk( char* pstr, const int pstrsize,
         case 20: 
           allrefrbs[k].shape = DODECAHEDRON;
 	  read_reference_Dodecahedron( gg, allrefrbs[k].RotMat );
+          break;
+
+        case 222: 
+          allrefrbs[k].shape = ELLIPSOID;
+	  read_reference_Ellipsoid( gg, allrefrbs[k].RotMat );
           break;
 	 
         case 666: 

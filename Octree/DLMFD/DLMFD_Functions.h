@@ -48,7 +48,8 @@ enum RigidBodyShape {
   BOX,
   CIRCULARCYLINDER3D,
   CONE,
-  TRUNCATEDCONE
+  TRUNCATEDCONE,
+  ELLIPSOID
 };
 
 
@@ -124,6 +125,15 @@ typedef struct {
 
 
 
+/** Additional geometric parameters for ellpsoids */
+typedef struct { 
+  double a,b,c;
+  double n1, n2;
+} EllipsoidGeomParameter;
+
+
+
+
 /** Rigid body geometric parameters */
 typedef struct {
   coord center;
@@ -134,7 +144,8 @@ typedef struct {
   int nperclones;
   PolyGeomParameter* pgp;
   CylGeomParameter* cgp; 
-  TruncConeGeomParameter* tcgp;  
+  TruncConeGeomParameter* tcgp;
+  EllipsoidGeomParameter* elgp;  
 } GeomParameter;
 
 
@@ -715,6 +726,7 @@ void compute_local_domain_AABB( AABB* A )
 # include "CircularCylinder3D.h"
 # include "TruncatedCone.h"
 # include "Cone.h"
+# include "Ellipsoid.h"
 
 /** Frees the rigid body data that were dynamically allocated */
 //----------------------------------------------------------------------------
@@ -796,7 +808,11 @@ void free_rigidbodies( RigidBody* allrbs, const size_t nrb, bool full_free )
 	  
         case TRUNCATEDCONE:
 	  free_TruncatedCone( &(allrbs[k].g) );
-	  break;	  	  	  	
+	  break;
+	  
+        case ELLIPSOID:
+	  free_Ellipsoid( &(allrbs[k].g) );
+	  break;	  	  	  	  	
 	  
         default:
           fprintf( stderr,"Unknown Rigid Body shape !!\n" );
@@ -863,7 +879,11 @@ void print_rigidbody( RigidBody const* p, char const* poshift )
 	
       case TRUNCATEDCONE:
         printf( "TRUNCATEDCONE" );
-	break;				
+	break;
+	
+      case ELLIPSOID:
+        printf( "ELLIPSOID" );
+	break;					
 	  
       default:
         fprintf( stderr,"Unknown Rigid Body shape !!\n" );
@@ -1030,6 +1050,10 @@ void print_referencerigidbody( RigidBody const* p, char const* poshift )
       case TRUNCATEDCONE:
         printf( "TRUNCATEDCONE" );
 	break;				
+
+      case ELLIPSOID:
+        printf( "ELLIPSOID" );
+	break;	
 	  
       default:
         fprintf( stderr,"Unknown Rigid Body shape !!\n" );
@@ -1183,7 +1207,11 @@ bool is_in_rigidbody( RigidBody const* p, double x, double y, double z )
       
     case TRUNCATEDCONE:
       is_in = is_in_TruncatedCone( x, y, z, gcp );             
-      break;                  
+      break;
+      
+    case ELLIPSOID:
+      is_in = is_in_Ellipsoid( x, y, z, p );             
+      break;                        
 	  
     default:
       fprintf( stderr,"Unknown Rigid Body shape !!\n" );
@@ -1740,7 +1768,14 @@ void create_referencerigidbody_boundary_geomfeatures( RigidBody* p )
       allocate_RigidBodyBoundary( &(p->s), m );
       create_referenceRB_boundary_geomfeatures_TruncatedCone( &gci, 
       	&(p->s), m );
-      break;                 	
+      break;
+      
+    case ELLIPSOID:     
+      compute_nboundary_Ellipsoid( &gci, &m );	
+      allocate_RigidBodyBoundary( &(p->s), m );
+      create_referenceRB_boundary_geomfeatures_Ellipsoid( &gci, 
+      	&(p->s), m );
+      break;                       	
 	  
     default:
       fprintf( stderr, "Unknown Rigid Body shape !!\n" );

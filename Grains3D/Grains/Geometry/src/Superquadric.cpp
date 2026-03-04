@@ -221,11 +221,14 @@ Point3 Superquadric::support( Vector3 const& v ) const
 vector<Point3> Superquadric::getEnvelope() const
 {
   Point3 point( 0., 0., 0. );
-  vector<Point3> surface( 3, point );
-  /**  surface[0][Y] = - halfHeight;
-  surface[1][Y] = - halfHeight;
-  surface[1][X] = radius;
-  surface[2][Y] = halfHeight; */
+  vector<Point3> surface( 2, point );
+  
+  surface[0][X] = m_a ;
+  surface[0][Y] = m_b ;  
+  surface[0][Z] = m_c ;
+  surface[1][X] = m_n1 ;
+  surface[1][Y] = m_n2 ;     
+  
   return ( surface );
 }
 
