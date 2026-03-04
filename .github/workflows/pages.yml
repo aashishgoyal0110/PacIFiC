@@ -31,11 +31,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install mkdocs
 
-      - name: Build Doxygen into docs/doxygen
-        run: cd docs && doxygen DoxyGrains
-
-      - name: Build MkDocs
-        run: cd docs && mkdocs build 
+      - name: Build docs via Makefile
+        run: make -C docs build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
