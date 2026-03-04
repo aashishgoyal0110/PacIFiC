@@ -42,7 +42,7 @@ ifneq ($(filter 1 true TRUE yes YES on ON,$(PACIFIC_ZLIB_USE_THIRDPARTY)),)
 SRC_THIRDPARTY_DEPS += third_party-zlib
 endif
 
-.PHONY: all
+.PHONY: all docs docs-develop
 
 all: src
 
@@ -57,6 +57,12 @@ mac: builddir $(SRC_THIRDPARTY_DEPS)
 
 fluid: builddir $(SRC_THIRDPARTY_DEPS)
 	$(PACIFIC_SRC_MAKE) fluid
+
+docs:
+	$(MAKE) -C "$(PACIFIC_ROOT_ABS)/docs" build
+
+docs-develop:
+	$(MAKE) -C "$(PACIFIC_ROOT_ABS)/docs" develop
 
 # help:
 # 	@echo "Targets:"

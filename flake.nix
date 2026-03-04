@@ -42,9 +42,8 @@
             inputsFrom = [ pkgs.pacific ];
             packages = with pkgs; [
               gdb
-              strace
-              ninja
               doxygen
+              python313Packages.mkdocs
               apptainer
             ];
           };
