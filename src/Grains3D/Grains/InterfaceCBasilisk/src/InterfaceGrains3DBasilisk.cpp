@@ -4,6 +4,7 @@
 
 #include "GrainsBuilderFactory.hh"
 #include "InterfaceGrains3DBasilisk.h"
+#include "Exec.hh"
 #include <iostream>
 #include <cstring>
 #include <string>
@@ -34,8 +35,13 @@ extern "C" {
     grains->do_before_time_stepping( rootNode );
     ReaderXML::terminate();
     
-    string cmd = "/bin/rm " + simulation_file_exe;
-    GrainsExec::m_return_syscmd = system( cmd.c_str() );
+    // REPLACED_EXEC_SCRIPTS
+    
+    // string cmd = "/bin/rm " + simulation_file_exe;
+    // GrainsExec::m_return_syscmd = system( cmd.c_str() );
+    
+    std::error_code ec;
+    const bool removed = std::filesystem::remove(std::filesystem::path(simulation_file_exe), ec);
     
     if ( !b_fluidcorrectedacc )
       grains->setFluidCorrectedAcceleration( b_fluidcorrectedacc ); 

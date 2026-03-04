@@ -8,6 +8,7 @@
 #include "Matrix.hh"
 #include "GrainsBuilderFactory.hh"
 #include "Data.hh"
+#include "Exec.hh"
 
 size_t AppCollision::m_allforces_blocksize = 128;
 
@@ -463,17 +464,17 @@ void AppCollision::initialiseForceStatsFiles( int rank,
   {
     if ( GrainsExec::m_ReloadType == "new" )
     {
-      string cmd = "bash " + get_tools_dir().string()	+ "/ExecScripts/ForceStatsFiles_clear.exec "
-	+ m_outputForceStats_dir;
-      GrainsExec::m_return_syscmd = system( cmd.c_str() );
+      // REPLACED_EXEC_SCRIPTS
+      // string cmd = "bash " + GrainsExec::m_GRAINS_HOME + "/Tools/ExecScripts/ForceStatsFiles_clear.exec " + m_outputForceStats_dir;
+      // GrainsExec::m_return_syscmd = system( cmd.c_str() );
+
+      PacIFiC::Grains::cleanup_force_stats_outputs(m_outputForceStats_dir);
     }
     else
        GrainsExec::checkTime_outputFile( m_outputForceStats_dir
       		+ "/ForceStats.res", time ) ;
   }
-
 }
-
 
 
 

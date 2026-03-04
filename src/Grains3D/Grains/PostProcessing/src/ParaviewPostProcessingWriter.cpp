@@ -18,6 +18,7 @@
 #include "SpheroCylinder.hh"
 #include "SpheroCylindricalPrism.hh"
 #include "Data.hh"
+#include "Exec.hh"
 #include <zlib.h>
 using namespace solid;
 
@@ -1959,11 +1960,13 @@ void ParaviewPostProcessingWriter::clearResultFiles() const
 {
   if ( m_rank == 0 ) 
   {
-    string cmd = "bash " + get_tools_dir().string() + "/ExecScripts/Paraview_clear.exec " + m_ParaviewFilename_dir + " " + m_ParaviewFilename;
-    GrainsExec::m_return_syscmd = system( cmd.c_str() );
+    // REPLACED_EXEC_SCRIPTS
+    // string cmd = "bash " + GrainsExec::m_GRAINS_HOME + "/Tools/ExecScripts/Paraview_clear.exec " + m_ParaviewFilename_dir + " " + m_ParaviewFilename;
+    // GrainsExec::m_return_syscmd = system( cmd.c_str() );
+
+    std::size_t num_removed = PacIFiC::Grains::cleanup_paraview_outputs(m_ParaviewFilename_dir, m_ParaviewFilename);
   }   
 }
-
 
 
 
