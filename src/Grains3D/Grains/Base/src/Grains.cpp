@@ -12,7 +12,7 @@
 #include "QuadrilobeCylinder.hh"
 #include <stdlib.h>
 #include <algorithm>
-
+#include <climits>
 
 // Initialisation des attributs static
 bool Grains::m_predictor_mode = true;

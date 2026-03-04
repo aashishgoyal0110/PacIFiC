@@ -8,7 +8,7 @@
 #include "PostProcessingWriterBuilderFactory.hh"
 #include "RawDataPostProcessingWriter.hh"
 #include "stdlib.h"
-
+#include <climits>
 
 // ----------------------------------------------------------------------------
 // Default constructor

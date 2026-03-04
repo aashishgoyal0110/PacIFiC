@@ -1,5 +1,5 @@
 #include "AllInsertionWindows.hh"
-
+#include <climits>
 
 // ----------------------------------------------------------------------------
 // Default constructor

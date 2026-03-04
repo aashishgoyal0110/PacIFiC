@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <sstream>
 #include <string>
+#include <climits>
+
 using namespace std;
 
 

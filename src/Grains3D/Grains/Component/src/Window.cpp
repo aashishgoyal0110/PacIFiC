@@ -4,7 +4,7 @@
 #include "Box.hh"
 #include "Cylinder.hh"
 #include "Segment.hh"
-
+#include <climits>
 
 // ----------------------------------------------------------------------------
 // Default constructor

@@ -14,7 +14,7 @@
 #include "QuadrilobeCylinder.hh"
 #include <math.h>
 #include <stdlib.h>
-
+#include <climits>
 
 
 // ----------------------------------------------------------------------------

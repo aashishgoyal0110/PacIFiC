@@ -1,7 +1,7 @@
 #include "AppBrownian.hh"
 #include "GrainsExec.hh"
 #include "GrainsBuilderFactory.hh"
-
+#include <climits>
 
 // ----------------------------------------------------------------------------
 // Constructor with an XML node as an input parameter
